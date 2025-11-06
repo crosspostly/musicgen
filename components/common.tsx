@@ -80,3 +80,32 @@ export const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
         </div>
     );
 };
+
+interface ProgressBarProps {
+  progress: number;
+  className?: string;
+}
+
+export const ProgressBar: React.FC<ProgressBarProps> = ({ progress, className }) => (
+  <div className={`w-full bg-gray-700 rounded-full h-2 overflow-hidden ${className}`}>
+    <div
+      className="bg-indigo-500 h-full transition-all duration-300"
+      style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+    />
+  </div>
+);
+
+interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+}
+
+export const Checkbox: React.FC<CheckboxProps> = ({ label, ...props }) => (
+  <label className="flex items-center space-x-2 cursor-pointer">
+    <input
+      type="checkbox"
+      className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-indigo-500 focus:ring-indigo-500 accent-indigo-500"
+      {...props}
+    />
+    <span className="text-sm font-medium text-gray-300">{label}</span>
+  </label>
+);
