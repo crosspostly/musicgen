@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # Python AI Service (FastAPI)
+  ai-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: musicgen-ai
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models
+      - ./output:/app/output
+      - ./ai-engines:/app/ai-engines
+      - ./batch-processing:/app/batch-processing
+    environment:
+      - MODEL_CACHE_DIR=/app/models/cache
+      - CUDA_VISIBLE_DEVICES=0  # Set to "" for CPU mode
+      - PYTHONUNBUFFERED=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+  
+  # Node.js Web Service
+  web-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+    container_name: musicgen-web
+    ports:
+      - "3000:3000"
+    depends_on:
+      ai-service:
+        condition: service_healthy
+    environment:
+      - AI_SERVICE_URL=http://ai-service:8000
+      - NODE_ENV=production
+    volumes:
+      - ./web-ui:/app/web-ui
+      - ./output:/app/output
+    restart: unless-stopped
+  
+  # Redis for job queue
+  redis:
+    image: redis:7-alpine
+    container_name: musicgen-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+volumes:
+  redis-data:
+    driver: local
