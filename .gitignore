@@ -12,6 +12,36 @@ dist
 dist-ssr
 *.local
 
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+*.egg-info/
+dist/
+.pytest_cache/
+.coverage
+
+# AI Models (large files)
+models/cache/
+models/*.bin
+models/*.safetensors
+
+# Output files
+output/
+temp/
+*.mp3
+*.wav
+*.flac
+
+# Environment
+.env
+.env.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -22,3 +52,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# OS
+.DS_Store
+Thumbs.db
