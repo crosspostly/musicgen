@@ -19,6 +19,14 @@ export enum Screen {
   FREESTYLE = 'Freestyle',
 }
 
+export interface ExportFile {
+  format: 'mp3' | 'wav';
+  fileUrl: string;
+  filePath?: string;
+  fileSize?: number; // in bytes
+  duration: number; // in seconds
+}
+
 export interface GeneratedTrack {
   id: string;
   name: string;
@@ -31,4 +39,29 @@ export interface GeneratedTrack {
     album?: string;
     genre?: string;
   };
+  exports?: ExportFile[];
+}
+
+export enum LoopJobStatus {
+  PENDING = 'pending',
+  ANALYZING = 'analyzing',
+  RENDERING = 'rendering',
+  EXPORTING = 'exporting',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+}
+
+export interface LoopJob {
+  id: string;
+  trackId: string;
+  status: LoopJobStatus;
+  duration: number; // in seconds
+  fadeInOut: boolean;
+  format: 'mp3' | 'wav';
+  progress: number; // 0-100
+  error?: string;
+  resultUrl?: string;
+  resultPath?: string;
+  createdAt: Date;
+  completedAt?: Date;
 }
