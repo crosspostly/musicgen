@@ -6,6 +6,17 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+backend/logs/
+backend/dist/
+
+# Storage
+storage/
+test-storage/
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
 
 node_modules
 dist

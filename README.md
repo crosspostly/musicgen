@@ -18,12 +18,13 @@ cd musicgen
 docker-compose up
 
 # Or run locally
-npm install
-pip install -r requirements.txt
-npm run dev
+npm run install:all  # Install frontend and backend dependencies
+cp .env.example .env  # Configure environment variables
+npm run dev          # Start both frontend and backend
 ```
 
-Web interface opens at `http://localhost:3000`
+Web interface opens at `http://localhost:3000`  
+Backend API available at `http://localhost:3001`
 
 ## ✨ Core Features (MVP Phase 1)
 
@@ -42,16 +43,23 @@ Web interface opens at `http://localhost:3000`
 
 ```
 musicgen/
-├── frontend/                 # React 19 + Vite web app
-│   ├── components/          # Reusable UI components
-│   ├── screens/            # Main application screens
-│   └── services/           # API integration layer
-├── backend/                 # FastAPI Python service
-│   ├── ai-engines/         # AI model integrations
-│   └── api/                # REST API endpoints
-├── docker-compose.yml      # Multi-service deployment
-├── requirements.txt        # Python dependencies
-└── .env.example           # Environment configuration
+├── components/              # Reusable UI components
+├── screens/                # Main application screens  
+├── services/               # Frontend API integration layer
+├── backend/                # Node.js + Express API server
+│   ├── src/
+│   │   ├── config/        # Environment and logging config
+│   │   ├── controllers/   # Request handlers
+│   │   ├── routes/        # API route definitions
+│   │   ├── services/      # Business logic layer
+│   │   ├── db/           # Database operations
+│   │   ├── middleware/    # Express middleware
+│   │   └── types/        # TypeScript definitions
+│   ├── tests/            # Backend test suite
+│   └── package.json      # Backend dependencies
+├── docker-compose.yml     # Multi-service deployment
+├── requirements.txt       # Python dependencies (for future AI services)
+└── .env.example          # Environment configuration
 ```
 
 ## 🛠️ Development
@@ -67,14 +75,32 @@ musicgen/
 # Copy environment file
 cp .env.example .env
 
-# Install dependencies
-npm install
-pip install -r requirements.txt
+# Install all dependencies (frontend + backend)
+npm run install:all
 
 # Start development servers
-npm run dev  # Frontend (port 3000)
-python -m uvicorn backend.main:app --reload  # Backend (port 8000)
+npm run dev          # Both frontend (3000) and backend (3001)
+npm run dev:frontend # Frontend only
+npm run dev:backend  # Backend only
 ```
+
+### Available Scripts
+- `npm run dev` - Start both frontend and backend concurrently
+- `npm run dev:frontend` - Start React development server (port 3000)
+- `npm run dev:backend` - Start Express API server (port 3001)
+- `npm run build` - Build both frontend and backend
+- `npm run test` - Run all tests
+- `npm run test:backend` - Run backend tests only
+
+### Backend Development
+The Node.js backend provides:
+- REST API at `http://localhost:3001/api`
+- SQLite database with auto-initialization
+- File storage management
+- Job orchestration and progress tracking
+- Health check endpoints
+
+See `backend/src/` for complete implementation.
 
 ## 📖 Documentation
 
