@@ -1,0 +1,5 @@
+{
+  "name": "AI Music Generator",
+  "description": "A full-featured web application for generating music using simulated AI models like Lyria and MAGNeT, with metadata editing, AI cover art creation, and export options.",
+  "requestFramePermissions": []
+}
