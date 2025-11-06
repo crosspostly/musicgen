@@ -1,161 +1,60 @@
-# MusicGen Local - AI Music Creation & Distribution Suite
+# MusicGen Local - AI Music Creation Suite
 
-> 🎵 **Создавайте, обрабатывайте и монетизируйте музыку с помощью ИИ**  
-> Локальное приложение для массового создания музыки и автоматического распространения на стриминговые платформы
+> 🎵 **Create, process, and monetize music with AI**  
+> Local application for mass music creation and automatic distribution to streaming platforms
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Node.js 16+](https://img.shields.io/badge/node.js-16+-green.svg)](https://nodejs.org/)
 
-## 🚀 Быстрый старт
+## 🚀 Quick Start
 
 ```bash
-# Клонируйте репозиторий
+# Clone the repository
 git clone https://github.com/crosspostly/musicgen
 cd musicgen
 
-# Запустите интерактивный установщик
-npm run setup
+# Run with Docker (recommended)
+docker-compose up
 
-# Выберите AI библиотеки и инструменты монетизации
-# Запустите приложение
-npm start
+# Or run locally
+npm install
+pip install -r requirements.txt
+npm run dev
 ```
 
-Веб-интерфейс откроется на `http://localhost:3000`
+Web interface opens at `http://localhost:3000`
 
-## ✨ Основные возможности
+## ✨ Core Features (MVP Phase 1)
 
-### 🎯 **Core MVP (Приоритет 1)**
-- **⚡ DiffRhythm Integration** - Генерация музыки за ~10 секунд с естественным вокалом
-- **🎵 Audio Loop Creator** - Зацикливание треков на 1-10 часов для YouTube стримов
-- **📝 Metadata Editor** - Пакетное редактирование названий, исполнителей, жанров
-- **🖥️ Web Interface** - Интуитивный интерфейс для управления всеми функциями
+- **⚡ DiffRhythm Integration** - Generate music in ~10 seconds with natural vocals
+- **🎵 Audio Loop Creator** - Create 1-10 hour loops for YouTube streams  
+- **📝 Metadata Editor** - Batch edit titles, artists, genres
+- **🖥️ Web Interface** - Intuitive UI for all functions
 
-### 💰 **Monetization MVP (Приоритет 2)**
-- **📤 FreshTunes Auto Upload** - Автозагрузка на Spotify, Apple Music, Deezer
-- **📺 YouTube Integration** - Автосоздание видео + синхронизация с аккаунтом
-- **🖼️ Cover Auto Cropper** - Автообрезка обложек под все форматы платформ
-- **⚙️ Batch Processing** - Массовая обработка до 50+ треков в месяц
+## 🎯 AI Models
 
-### 🔧 **Enhancement Phase (Приоритет 3)**
-- **🎤 YuE + Bark Integration** - Дополнительные AI модели для разнообразия
-- **🎨 AI Cover Generator** - Генерация обложек в едином стиле
-- **☁️ Google Drive Sync** - Синхронизация проектов между устройствами
-- **📡 YouTube 24/7 Streams** - Постоянные стримы для пассивного дохода
-
-## 🎯 AI Модели (только Open Source)
-
-| Модель | Скорость | Качество | Тип контента | Размер |
+| Model | Speed | Quality | Max Duration | Size |
 |--------|----------|----------|--------------|--------|
-| **DiffRhythm ⭐** | ~10 сек | Отличное | Вокал + музыка до 4:45 | 3.2GB |
-| **YuE** | ~30-40 сек | Отличное | Rock/Metal, контроль инструментов | 2.8GB |
-| **Bark** | ~20 сек/сегмент | Хорошее | 100+ голосов, спецэффекты | 1.5GB |
-| **Lyria RealTime** | Real-time | Профессиональное | $0.06/30 сек, 48kHz | 50MB |
-| **MAGNeT** | Среднее | Хорошее | Только инструментальное | 2.2GB |
+| **DiffRhythm ⭐** | ~10 sec | Excellent | 4:45 min | 3.2GB |
 
-## 💸 Монетизация (прогнозы на основе реальных данных)
-
-### Месяц 1: $7-31 чистой прибыли (0 затрат)
-- **56 треков**: Lo-Fi (40%) + Ambient (30%) + Corporate (20%)
-- **FreshTunes**: Бесплатная дистрибуция (20% комиссия)
-- **YouTube**: Один 24/7 Lo-Fi стрим
-
-### Месяц 2: $27-152 чистой прибыли
-- **80 новых треков** (всего 136)
-- **Расширение**: Rock/Metal через YuE
-- **Два YouTube стрима**: Lo-Fi + Ambient Sleep
-
-### Месяц 3: $112-565 чистой прибыли  
-- **120 новых треков** (всего 256)
-- **Полная автоматизация**: От генерации до загрузки
-- **Множественные стримы** и оптимизированная монетизация
-
-## 🛠️ Установка и настройка
-
-### Системные требования
-- **Node.js** 16+ 
-- **Python** 3.8+ (для AI библиотек)
-- **FFmpeg** (устанавливается автоматически)
-- **Свободное место**: 3-10GB (в зависимости от выбранных AI моделей)
-
-### Интерактивная установка
-
-```bash
-# Запуск установщика с выбором компонентов
-npm run setup
-
-# Примеры команд для продвинутых пользователей
-npm run install-ai diffrhythm          # Установка DiffRhythm
-npm run install-ai yue                # Установка YuE
-npm run install-integration freshtunes # FreshTunes API
-npm run install-integration youtube    # YouTube интеграция
-npm run update-all                     # Обновление всех библиотек
-```
-
-### Рекомендуемые конфигурации
-
-**Для начинающих (MVP)**:
-```bash
-✓ DiffRhythm (генерация музыки)
-✓ Audio Loop Creator (зацикливание)  
-✓ FreshTunes Integration (стриминг)
-✓ Cover Auto Cropper (обложки)
-```
-
-**Для продвинутых пользователей**:
-```bash
-✓ Все AI модели (DiffRhythm + YuE + Bark)
-✓ YouTube Integration (автозагрузка)
-✓ Полная автоматизация workflow
-✓ 24/7 YouTube стримы
-```
-
-## 📁 Структура проекта
+## 📁 Project Structure
 
 ```
-musicgen-local/
-├── installer/                  # Интерактивный установщик
-│   ├── setup.js
-│   └── ai-library-manager.js
-├── web-ui/                    # Веб-интерфейс  
-│   ├── components/
-│   │   ├── MusicGenerator.jsx
-│   │   ├── LoopCreator.jsx
-│   │   └── BatchProcessor.jsx
-│   └── pages/
-├── ai-engines/               # AI модели
-│   ├── diffrhythm/
-│   ├── yue/
-│   └── bark/
-├── integrations/            # Внешние сервисы
-│   ├── freshtunes/
-│   ├── youtube/
-│   └── google-drive/
-├── batch-processing/        # Обработка контента
-│   ├── metadata-editor/
-│   ├── loop-creator/
-│   └── cover-cropper/
-└── config/                 # Конфигурация
-    ├── libraries.json
-    └── user-settings.json
+musicgen/
+├── frontend/                 # React 19 + Vite web app
+│   ├── components/          # Reusable UI components
+│   ├── screens/            # Main application screens
+│   └── services/           # API integration layer
+├── backend/                 # FastAPI Python service
+│   ├── ai-engines/         # AI model integrations
+│   └── api/                # REST API endpoints
+├── docker-compose.yml      # Multi-service deployment
+├── requirements.txt        # Python dependencies
+└── .env.example           # Environment configuration
 ```
 
-## 🔧 Основные функции
-
-### 🎵 Audio Loop Creator
-Превращает короткие треки в длинные композиции для YouTube стримов:
-
-```javascript
-// Пример использования
-const looper = new AudioLooper();
-await looper.createLoop({
-  inputFile: 'track.mp3',
-  duration: '2h',      // 1 минута - 10 часов
-  fadeInOut: true,     // Плавные переходы
-  outputFormat: 'mp3'
-});
-```
+## 🛠️ Development
 
 **Возможности**:
 - Анализ точек зацикливания
@@ -235,52 +134,41 @@ await coverCropper.processImage({
   smartCrop: true  // Детекция объектов/лиц
 });
 ```
+### System Requirements
+- **Node.js** 16+ 
+- **Python** 3.8+
+- **Docker** (optional but recommended)
+- **Free space**: 5GB+ for AI models
 
-## 🌐 API и интеграции
+### Setup
+```bash
+# Copy environment file
+cp .env.example .env
 
-### FreshTunes API
-```javascript
-// Автозагрузка на стриминговые платформы
-await freshtunes.uploadAlbum({
-  tracks: ['track1.mp3', 'track2.mp3'],
-  metadata: albumMetadata,
-  distribution: 'all_platforms'  // Spotify, Apple Music, Deezer и др.
-});
+# Install dependencies
+npm install
+pip install -r requirements.txt
+
+# Start development servers
+npm run dev  # Frontend (port 3000)
+python -m uvicorn backend.main:app --reload  # Backend (port 8000)
 ```
 
-### Gemini API (опционально)
-```javascript
-// Генерация через Lyria RealTime
-const gemini = new GeminiClient(process.env.GEMINI_API_KEY);
-const music = await gemini.generateMusic({
-  prompt: 'Lo-fi hip hop with rain sounds',
-  duration: 180,
-  quality: '48khz'
-});
-```
+## 📖 Documentation
 
-## 🤝 Вклад в проект
+- **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Technical architecture and setup
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide
 
-Мы приветствуем вклад сообщества! См. [CONTRIBUTING.md](CONTRIBUTING.md) для деталей.
+## 🤝 Contributing
 
-### Roadmap
-- [ ] **Q1 2025**: MVP релиз с DiffRhythm + базовой монетизацией
-- [ ] **Q2 2025**: Полная YouTube интеграция + batch processing
-- [ ] **Q3 2025**: Все AI модели + продвинутая автоматизация
-- [ ] **Q4 2025**: Мобильное приложение + маркетплейс плагинов
+We welcome community contributions! See the implementation guide for technical details.
 
-## 📄 Лицензия
+## 📄 License
 
-MIT License - см. [LICENSE](LICENSE) файл для деталей.
-
-## 🆘 Поддержка
-
-- **GitHub Issues**: [Сообщить о проблеме](https://github.com/crosspostly/musicgen/issues)
-- **Документация**: [DETAILED-PLAN.md](DETAILED-PLAN.md)
-- **AI Studio**: [View in AI Studio](https://ai.studio/apps/drive/1MFtxFZtyYtjppuzSfs1zkPK2DqW6T0rz)
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**⭐ Поставьте звезду, если проект полезен!**
+**⭐ Star the repo if you find it useful!**
 
-Создано с ❤️ для музыкальных энтузиастов и предпринимателей
+Created with ❤️ for music enthusiasts and entrepreneurs
