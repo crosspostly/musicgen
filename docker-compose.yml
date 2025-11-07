@@ -1,7 +1,17 @@
+# MusicGen Local - Docker Compose Configuration
+# ==============================================
+# Локальная установка без внешних зависимостей
+# Всё работает на вашем компьютере!
+
 version: '3.8'
 
 services:
-  # Python AI Service (FastAPI)
+  # ========================================
+  # Python AI Service (FastAPI Backend)
+  # ========================================
+  # Обрабатывает генерацию музыки через AI модели
+  # Порт: 8000
+  
   ai-service:
     build:
       context: .
@@ -10,14 +20,15 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./models:/app/models
-      - ./output:/app/output
-      - ./ai-engines:/app/ai-engines
-      - ./batch-processing:/app/batch-processing
+      - ./models:/app/models              # AI модели (DiffRhythm, YuE, Bark)
+      - ./output:/app/output              # Сгенерированная музыка
+      - ./ai-engines:/app/ai-engines      # AI движки
+      - ./batch-processing:/app/batch-processing  # Пакетная обработка
     environment:
       - MODEL_CACHE_DIR=/app/models/cache
-      - CUDA_VISIBLE_DEVICES=0  # Set to "" for CPU mode
+      - CUDA_VISIBLE_DEVICES=0            # GPU mode (set to "" for CPU)
       - PYTHONUNBUFFERED=1
+      - REDIS_URL=redis://redis:6379      # Локальный Redis
     deploy:
       resources:
         reservations:
@@ -32,8 +43,16 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    depends_on:
+      redis:
+        condition: service_healthy
   
-  # Node.js Web Service
+  # ========================================
+  # Node.js Web Service (Frontend)
+  # ========================================
+  # Веб-интерфейс для взаимодействия
+  # Порт: 3000
+  
   web-service:
     build:
       context: .
@@ -44,25 +63,49 @@ services:
     depends_on:
       ai-service:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       - AI_SERVICE_URL=http://ai-service:8000
       - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379     # Локальный Redis
     volumes:
       - ./web-ui:/app/web-ui
       - ./output:/app/output
     restart: unless-stopped
   
-  # Redis for job queue
+  # ========================================
+  # Redis - Локальная база данных
+  # ========================================
+  # Используется для:
+  # - Очередь задач генерации музыки
+  # - Хранение состояния задач
+  # - Кэширование результатов
+  # 
+  # Порт: 6379 (локальный, без пароля)
+  # Данные: Сохраняются в volume для персистентности
+  
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine              # Легкая версия Redis
     container_name: musicgen-redis
     ports:
-      - "6379:6379"
+      - "6379:6379"                     # Доступен на localhost:6379
     volumes:
-      - redis-data:/data
+      - redis-data:/data                # Персистентное хранилище
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+# ========================================
+# Volumes - Локальное хранилище
+# ========================================
+# Все данные хранятся на вашем компьютере
 
 volumes:
   redis-data:
-    driver: local
+    driver: local                       # Локальное хранилище (не облако!)
