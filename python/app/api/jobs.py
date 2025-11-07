@@ -3,6 +3,7 @@ Job API endpoints
 """
 
 from typing import List, Optional, Dict, Any
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from pydantic import BaseModel, Field
 
@@ -25,10 +26,10 @@ class JobResponse(BaseModel):
     result_data: Optional[Dict[str, Any]] = None
     message: Optional[str] = None
     error: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
     worker_id: Optional[str] = None
     
     class Config:
