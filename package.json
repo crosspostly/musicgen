@@ -17,7 +17,11 @@
     "preview": "vite preview",
     "test": "npm run test --workspaces",
     "test:backend": "npm run test --workspace=backend",
-    "install:all": "npm install && npm install --workspace=backend"
+    "install:all": "npm install && npm install --workspace=backend",
+    "backend:py:diffrhythm": "cd python && python services/diffrhythm_service.py",
+    "backend:py:test": "cd python && python tests/smoke_test.py",
+    "backend:test": "npm run test --workspace=backend",
+    "dev:full": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run backend:py:diffrhythm\""
   },
   "dependencies": {
     "react": "^19.2.0",

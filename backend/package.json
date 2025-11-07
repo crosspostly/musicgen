@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "build": "echo 'Backend build completed'",
     "test": "node backend/tests/smoke_test.js",
     "test:watch": "jest --watch"
   },
