@@ -9,6 +9,25 @@
 
 ## 🚀 Quick Start
 
+
+---
+
+## 📚 Installation Guide
+
+> **🚀 New to MusicGen?** Check out our comprehensive **[Setup Guide](SETUP-GUIDE.md)** for:
+> - **3 installation methods** (Auto-installer, Docker, Manual)
+> - **Local Redis configuration** (no external dependencies)
+> - **AI models selection** (DiffRhythm, YuE, Bark)
+> - **Troubleshooting** common issues
+> - **Russian language** for better accessibility
+
+**Quick links:**
+- 📖 [SETUP-GUIDE.md](SETUP-GUIDE.md) - Complete installation guide
+- 🐳 [docker-compose.yml](docker-compose.yml) - Docker configuration
+- 🔧 [IMPLEMENTATION.md](IMPLEMENTATION.md) - Technical architecture
+- 🚀 [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment
+
+
 ```bash
 # Clone the repository
 git clone https://github.com/crosspostly/musicgen
@@ -185,6 +204,8 @@ See `backend/src/` for complete implementation.
 - **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Technical architecture and setup
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide
 
+
+- **[SETUP-GUIDE.md](SETUP-GUIDE.md)** - Complete installation and setup guide
 ## 🤝 Contributing
 
 We welcome community contributions! See the implementation guide for technical details.
