@@ -110,6 +110,9 @@ async function bootstrap(): Promise<void> {
       // Close database connection
       db.close();
       
+      // Cleanup DiffRhythm service
+      jobService.cleanup();
+      
       logger.info('Graceful shutdown completed');
       process.exit(0);
     });

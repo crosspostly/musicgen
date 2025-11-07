@@ -1,14 +1,17 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DatabaseService } from '../db/databaseService.js';
 import { logger } from '../config/logger.js';
+import { DiffRhythmJobService } from './diffRhythmService.js';
 import { Job } from '../types/index.js';
 
 export class JobService {
   private db: DatabaseService;
   private activeJobs = new Map<string, Promise<any>>();
+  private diffRhythmService: DiffRhythmJobService;
 
   constructor(db: DatabaseService) {
     this.db = db;
+    this.diffRhythmService = new DiffRhythmJobService(db);
   }
 
   async createJob(type: Job['type']): Promise<Job> {
@@ -151,7 +154,31 @@ export class JobService {
     return this.activeJobs.size;
   }
 
-  isJobActive(jobId: string): boolean {
-    return this.activeJobs.has(jobId);
+  async createDiffRhythmJob(requestData: any): Promise<{ jobId: string; status: string; message: string }> {
+    return this.diffRhythmService.createJob(requestData);
+  }
+
+  async getDiffRhythmJob(jobId: string) {
+    return this.diffRhythmService.getJob(jobId);
+  }
+
+  async getDiffRhythmTrack(trackId: string) {
+    return this.diffRhythmService.getTrack(trackId);
+  }
+
+  async listDiffRhythmJobs(limit = 50, offset = 0): Promise<any[]> {
+    return this.diffRhythmService.listJobs(limit, offset);
+  }
+
+  async listDiffRhythmTracks(limit = 50, offset = 0): Promise<any[]> {
+    return this.diffRhythmService.listTracks(limit, offset);
+  }
+
+  async deleteDiffRhythmJob(jobId: string): Promise<void> {
+    return this.diffRhythmService.deleteJob(jobId);
+  }
+
+  async cleanup(): Promise<void> {
+    await this.diffRhythmService.cleanup();
   }
 }

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { TrackController } from '../controllers/trackController.js';
-import { validateParams } from '../middleware/validation.js';
-import { trackIdSchema, paginationSchema } from '../types/schemas.js';
+import { validateParams, paginationSchema } from '../middleware/validation.js';
+import { trackIdSchema } from '../types/schemas.js';
 
 export function createTrackRoutes(trackController: TrackController): Router {
   const router = Router();
@@ -13,13 +13,13 @@ export function createTrackRoutes(trackController: TrackController): Router {
       (req.query as any) = parsed;
       next();
     },
-    (req, res) => trackController.listTracks(req, res)
+    (req, res) => trackController.listDiffRhythmTracks(req, res)
   );
 
   // GET /api/tracks/:id - Get specific track
   router.get('/:id', 
     validateParams(trackIdSchema),
-    (req, res) => trackController.getTrack(req, res)
+    (req, res) => trackController.getDiffRhythmTrack(req, res)
   );
 
   return router;

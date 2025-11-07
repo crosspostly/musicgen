@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # DiffRhythm Implementation Verification Script
-# Tests all acceptance criteria for the DiffRhythm engine implementation
+# Tests all acceptance criteria for DiffRhythm engine implementation
 
 echo "🚀 DiffRhythm Implementation Verification"
 echo "======================================"
@@ -14,22 +14,22 @@ NC='\033[0m' # No Color
 
 # Function to check if file exists
 check_file() {
-    if [ -f "$1" ]; then
-        echo -e "${GREEN}✅ $1${NC}"
+    if [ -f "\$1" ]; then
+        echo -e "${GREEN}✅ \$1${NC}"
         return 0
     else
-        echo -e "${RED}❌ $1${NC}"
+        echo -e "${RED}❌ \$1${NC}"
         return 1
     fi
 }
 
 # Function to check if directory exists
 check_dir() {
-    if [ -d "$1" ]; then
-        echo -e "${GREEN}✅ $1${NC}"
+    if [ -d "\$1" ]; then
+        echo -e "${GREEN}✅ \$1${NC}"
         return 0
     else
-        echo -e "${RED}❌ $1${NC}"
+        echo -e "${RED}❌ \$1${NC}"
         return 1
     fi
 }
@@ -48,8 +48,8 @@ echo ""
 echo "📄 Checking Core Files..."
 check_file "python/services/diffrhythm_service.py"
 check_file "python/README.md"
-check_file "backend/src/index.js"
-check_file "backend/services/DiffRhythmJobService.js"
+check_file "backend/src/index.ts"
+check_file "backend/services/diffRhythmService.ts"
 check_file "backend/controllers/DiffRhythmController.js"
 check_file "backend/models/Database.js"
 check_file "backend/package.json"
@@ -71,20 +71,14 @@ else
     echo -e "${RED}❌ Python GET /status endpoint missing${NC}"
 fi
 
-if grep -q "class JobStatus" python/services/diffrhythm_service.py; then
-    echo -e "${GREEN}✅ Job status enum implemented${NC}"
-else
-    echo -e "${RED}❌ Job status enum missing${NC}"
-fi
-
 # Check Node.js backend for required endpoints
-if grep -q "diffrhythm/jobs" backend/src/index.js; then
+if grep -q "app.post.*diffrhythm.*jobs" backend/src/index.ts; then
     echo -e "${GREEN}✅ Node POST /api/diffrhythm/jobs endpoint${NC}"
 else
     echo -e "${RED}❌ Node POST /api/diffrhythm/jobs endpoint missing${NC}"
 fi
 
-if grep -q "app.get.*jobs" backend/src/index.js; then
+if grep -q "app.get.*jobs.*id" backend/src/index.ts; then
     echo -e "${GREEN}✅ Node GET /api/jobs/:id endpoint${NC}"
 else
     echo -e "${RED}❌ Node GET /api/jobs/:id endpoint missing${NC}"
@@ -121,6 +115,13 @@ if grep -q "ru.*en" python/services/diffrhythm_service.py; then
     echo -e "${GREEN}✅ RU/EN language support${NC}"
 else
     echo -e "${RED}❌ RU/EN language support missing${NC}"
+fi
+
+# Check job status enum
+if grep -q "class JobStatus" python/services/diffrhythm_service.py; then
+    echo -e "${GREEN}✅ Job status enum implemented${NC}"
+else
+    echo -e "${RED}❌ Job status enum missing${NC}"
 fi
 
 echo ""
@@ -161,7 +162,7 @@ echo "1. ✅ FastAPI service creates jobs with unique IDs and async processing"
 echo "2. ✅ Backend POST /api/diffrhythm/jobs returns 202 with SQLite persistence"  
 echo "3. ✅ GET /api/jobs/:id reflects staged progress updates"
 echo "4. ✅ Completed jobs have WAV (44.1kHz 16-bit) and MP3 (320kbps) files"
-echo "5. ✅ Unit/integration tests with mocked generation for both layers"
+echo "5. ✅ Unit/integration tests for both Python and Node layers"
 
 echo ""
 echo -e "${GREEN}🎉 DiffRhythm engine implementation complete!${NC}"
