@@ -332,7 +332,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on application startup"""
@@ -466,48 +465,35 @@ async def get_job_status(job_id: str):
     )
 
 @app.get("/result/{job_id}")
-async def get_job_result(job_id: str):
-    """Get job result with file information"""
+async def get_result(job_id: str):
+    """Get generated audio file"""
     job = job_store.get_job(job_id)
     
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+    if not job or job.status != JobStatus.COMPLETED:
+        raise HTTPException(status_code=404, detail="Result not found")
     
-    if job.status != JobStatus.COMPLETED:
-        raise HTTPException(status_code=400, detail="Job not completed")
+    if not job.mp3_path or not os.path.exists(job.mp3_path):
+        raise HTTPException(status_code=404, detail="Audio file not found")
     
-    wav_info = exporter.get_file_info(job.wav_path) if job.wav_path else {}
-    mp3_info = exporter.get_file_info(job.mp3_path) if job.mp3_path else {}
-    
-    return {
-        "job_id": job_id,
-        "status": job.status,
-        "duration": job.duration,
-        "wav_file": wav_info,
-        "mp3_file": mp3_info,
-        "metadata": {
-            "prompt": job.request_data.prompt,
-            "language": job.request_data.language,
-            "genre": job.request_data.genre,
-            "mood": job.request_data.mood,
-            "created_at": job.created_at.isoformat(),
-            "completed_at": job.updated_at.isoformat()
-        }
-    }
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        job.mp3_path,
+        media_type="audio/mpeg",
+        filename=f"{job_id}.mp3"
+    )
+
+@app.get("/model/info")
+async def get_model_info():
+    """Get model information"""
+    return engine.get_model_info()
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    model_info = engine.get_model_info()
-    
     return {
         "status": "healthy",
-        "model": model_info,
-        "storage_dir": str(exporter.storage_dir),
-        "active_jobs": len([j for j in job_store.jobs.values() if j.status in [
-            JobStatus.PENDING, JobStatus.LOADING_MODEL, 
-            JobStatus.PREPARING_PROMPT, JobStatus.GENERATING_AUDIO, JobStatus.EXPORTING
-        ]])
+        "model_loaded": engine._model_loaded,
+        "active_jobs": len([j for j in job_store.jobs.values() if j.status in [JobStatus.PENDING, JobStatus.LOADING_MODEL, JobStatus.PREPARING_PROMPT, JobStatus.GENERATING_AUDIO, JobStatus.EXPORTING]])
     }
 
 @app.get("/jobs")
@@ -520,7 +506,7 @@ async def list_jobs():
                 "status": job.status,
                 "progress": job.progress,
                 "created_at": job.created_at.isoformat(),
-                "updated_at": job.updated_at.isoformat()
+                "prompt": job.request_data.prompt
             }
             for job in job_store.jobs.values()
         ]
@@ -528,4 +514,4 @@ async def list_jobs():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
