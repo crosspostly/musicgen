@@ -1,7 +1,7 @@
 # MusicGen Local - Docker Compose Configuration
 # ==============================================
-# Локальная установка без внешних зависимостей
-# Всё работает на вашем компьютере!
+# Local installation without external dependencies
+# Everything runs on your computer!
 
 version: '3.8'
 
@@ -9,9 +9,8 @@ services:
   # ========================================
   # Python AI Service (FastAPI Backend)
   # ========================================
-  # Обрабатывает генерацию музыки через AI модели
-  # Порт: 8000
-  
+  # Handles music generation through AI models
+  # Port: 8000
   ai-service:
     build:
       context: .
@@ -20,15 +19,15 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./models:/app/models              # AI модели (DiffRhythm, YuE, Bark)
-      - ./output:/app/output              # Сгенерированная музыка
-      - ./ai-engines:/app/ai-engines      # AI движки
-      - ./batch-processing:/app/batch-processing  # Пакетная обработка
+      - ./models:/app/models              # AI models (DiffRhythm, YuE, Bark)
+      - ./output:/app/output              # Generated music
+      - ./ai-engines:/app/ai-engines      # AI engines
+      - ./batch-processing:/app/batch-processing  # Batch processing
     environment:
       - MODEL_CACHE_DIR=/app/models/cache
       - CUDA_VISIBLE_DEVICES=0            # GPU mode (set to "" for CPU)
       - PYTHONUNBUFFERED=1
-      - REDIS_URL=redis://redis:6379      # Локальный Redis
+      - REDIS_URL=redis://redis:6379      # Local Redis
     deploy:
       resources:
         reservations:
@@ -48,11 +47,10 @@ services:
         condition: service_healthy
   
   # ========================================
-  # React Frontend (Static Build)
+  # Node.js Web Service
   # ========================================
-  # Веб-интерфейс React SPA (собирается с npm/Vite)
-  # Порт: 3000
-  
+  # Web interface React SPA (built with npm/Vite)
+  # Port: 3000
   web-service:
     build:
       context: .
@@ -68,30 +66,30 @@ services:
     environment:
       - AI_SERVICE_URL=http://ai-service:8000
       - NODE_ENV=production
-      - REDIS_URL=redis://redis:6379     # Локальный Redis
+      - REDIS_URL=redis://redis:6379     # Local Redis
     volumes:
       - ./web-ui:/app/web-ui
       - ./output:/app/output
     restart: unless-stopped
   
   # ========================================
-  # Redis - Локальная база данных
+  # Redis - Local Database
   # ========================================
-  # Используется для:
-  # - Очередь задач генерации музыки
-  # - Хранение состояния задач
-  # - Кэширование результатов
+  # Used for:
+  # - Music generation job queue
+  # - Job state storage
+  # - Result caching
   # 
-  # Порт: 6379 (локальный, без пароля)
-  # Данные: Сохраняются в volume для персистентности
+  # Port: 6379 (local, no password)
+  # Data: Saved in volume for persistence
   
   redis:
-    image: redis:7-alpine              # Легкая версия Redis
+    image: redis:7-alpine              # Lightweight Redis version
     container_name: musicgen-redis
     ports:
-      - "6379:6379"                     # Доступен на localhost:6379
+      - "6379:6379"                     # Available on localhost:6379
     volumes:
-      - redis-data:/data                # Персистентное хранилище
+      - redis-data:/data                # Persistent storage
     restart: unless-stopped
     command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy allkeys-lru
     healthcheck:
@@ -102,10 +100,10 @@ services:
       start_period: 5s
 
 # ========================================
-# Volumes - Локальное хранилище
+# Volumes - Local Storage
 # ========================================
-# Все данные хранятся на вашем компьютере
+# All data is stored on your computer
 
 volumes:
   redis-data:
-    driver: local                       # Локальное хранилище (не облако!)
+    driver: local                       # Local storage (not cloud!)

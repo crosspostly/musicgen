@@ -26,9 +26,84 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
+### Production Docker Compose
+```yaml
+version: '3.8'
+
+services:
+  ai-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: musicgen-ai
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models
+      - ./output:/app/output
+      - ./logs:/app/logs
+    environment:
+      - MODEL_CACHE_DIR=/app/models/cache
+      - CUDA_VISIBLE_DEVICES=0
+      - REDIS_URL=redis://redis:6379
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  web-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+    container_name: musicgen-web
+    ports:
+      - "3000:3000"
+    depends_on:
+      ai-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - AI_SERVICE_URL=http://ai-service:8000
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./output:/app/output
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: musicgen-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  redis-data:
+    driver: local
+```
+
 ## 🔧 Dockerfiles
 
-### Dockerfile.python (Backend)
+### Dockerfile.python
 ```dockerfile
 FROM python:3.9-slim
 
@@ -47,6 +122,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Application code
 COPY python/ ./python/
+COPY backend/ ./backend/
+COPY ai-engines/ ./ai-engines/
 COPY models/ ./models/
 
 # Create directories
@@ -58,34 +135,33 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 
 EXPOSE 8000
 
-CMD ["uvicorn", "python.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-### Dockerfile.frontend (Static Frontend)
+### Dockerfile.node
 ```dockerfile
-FROM node:18-alpine AS builder
+FROM node:18-alpine
 
 WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --only=production
+
+# Application code
+COPY frontend/ ./frontend/
+COPY public/ ./public/
 
 # Build frontend
-COPY . .
-RUN npm run build
+RUN cd frontend && npm run build
 
-# Serve with Python
-FROM python:3.9-slim
-
-WORKDIR /app
-
-# Copy built frontend
-COPY --from=builder /app/dist ./dist
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:3000 || exit 1
 
 EXPOSE 3000
 
-CMD ["python", "-m", "http.server", "3000", "--directory", "dist"]
+CMD ["npm", "run", "start"]
 ```
 
 ## 🔄 Reverse Proxy (Nginx)
@@ -97,11 +173,11 @@ events {
 }
 
 http {
-    upstream python_backend {
+    upstream ai_service {
         server ai-service:8000;
     }
 
-    upstream frontend {
+    upstream web_service {
         server web-service:3000;
     }
 
@@ -111,16 +187,18 @@ http {
 
         # Frontend
         location / {
-            proxy_pass http://frontend;
+            proxy_pass http://web_service;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         }
 
-        # API endpoints (Python FastAPI)
+        # API endpoints
         location /api/ {
-            proxy_pass http://python_backend;
+            proxy_pass http://ai_service;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             
             # Increase timeout for long operations
             proxy_read_timeout 600s;
@@ -160,14 +238,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.python
-    # ... (rest of configuration)
+    # ... (same as above)
 
   web-service:
-    # Static frontend server
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    # ... (rest of configuration)
+    # ... (same as above)
 ```
 
 ## 🌐 Cloud Deployment
@@ -221,6 +295,69 @@ cd musicgen
 docker-compose up -d
 ```
 
+## 📊 Monitoring & Logging
+
+### Prometheus + Grafana
+```yaml
+version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+
+volumes:
+  grafana-data:
+```
+
+### Log Aggregation (ELK Stack)
+```yaml
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.5.0
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.5.0
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.5.0
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
+volumes:
+  elasticsearch-data:
+```
+
 ## 🔒 SSL/TLS Setup
 
 ### Let's Encrypt with Certbot
@@ -247,10 +384,10 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
     
     ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
     ssl_prefer_server_ciphers off;
-    
-    # ... (rest of configuration)
+
+    # ... (same location blocks as above)
 }
 
 server {
@@ -260,183 +397,161 @@ server {
 }
 ```
 
-## 🚀 Performance Optimization
+## 🔧 Environment Variables
 
-### Production Environment Variables
+### .env Configuration
 ```bash
-# Python Backend
+# AI Service Configuration
 MODEL_CACHE_DIR=/app/models/cache
 CUDA_VISIBLE_DEVICES=0
 REDIS_URL=redis://redis:6379
-MAX_CONCURRENT_JOBS=5
-JOB_TIMEOUT=300
-WORKERS=4
 
-# Frontend (static build)
-VITE_API_URL=https://your-domain.com
+# Web Service Configuration
+AI_SERVICE_URL=http://ai-service:8000
+NODE_ENV=production
+
+# Database Configuration
+DATABASE_URL=sqlite:///./musicgen.db
+
+# Security
+JWT_SECRET=your-super-secret-jwt-key
+API_KEY=your-api-key
+
+# Logging
+LOG_LEVEL=info
+LOG_FORMAT=json
 ```
 
-### Docker Resource Limits
+## 🚀 Performance Optimization
+
+### Resource Limits
 ```yaml
-# docker-compose.prod.yml
 version: '3.8'
 
 services:
   ai-service:
+    # ... (other config)
     deploy:
       resources:
         limits:
-          memory: 8G
           cpus: '4.0'
+          memory: 8G
         reservations:
-          memory: 4G
           cpus: '2.0'
-    environment:
-      - MAX_CONCURRENT_JOBS=5
-      - JOB_TIMEOUT=300
-
-  redis:
-    command: redis-server --maxmemory 2gb --maxmemory-policy allkeys-lru
+          memory: 4G
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   web-service:
+    # ... (other config)
     deploy:
       resources:
         limits:
-          memory: 512M
-          cpus: '0.5'
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
 ```
 
-## 🔧 Maintenance
-
-### Backup Strategy
-```bash
-#!/bin/bash
-# backup.sh
-
-# Backup AI models
-tar -czf models-backup-$(date +%Y%m%d).tar.gz ./models/
-
-# Backup Redis data
-docker exec musicgen-redis redis-cli BGSAVE
-docker cp musicgen-redis:/data/dump.rdb ./redis-backup-$(date +%Y%m%d).rdb
-
-# Backup output files
-tar -czf output-backup-$(date +%Y%m%d).tar.gz ./output/
-
-# Upload to cloud storage (optional)
-# aws s3 cp ./models-backup-$(date +%Y%m%d).tar.gz s3://musicgen-backups/
+### Caching Strategy
+```yaml
+services:
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    # ... (other config)
 ```
 
-### Health Checks
-```bash
-#!/bin/bash
-# health-check.sh
-
-# Check Python backend
-curl -f http://localhost:8000/health || exit 1
-
-# Check frontend
-curl -f http://localhost:3000 || exit 1
-
-# Check Redis
-redis-cli ping || exit 1
-
-# Check disk space
-df -h | grep -E "/models|/output" | awk '{print $5}' | sed 's/%//' | while read usage; do
-    if [ $usage -gt 80 ]; then
-        echo "Warning: Disk usage at ${usage}%"
-    fi
-done
-```
-
-## 📊 Monitoring
-
-### Docker Stats
-```bash
-# Real-time resource monitoring
-docker stats
-
-# Check logs
-docker-compose logs -f ai-service
-docker-compose logs -f web-service
-```
-
-### Python Backend Logs
-```python
-# Add to python/main.py
-import logging
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('/app/logs/app.log'),
-        logging.StreamHandler()
-    ]
-)
-```
-
-## 🚨 Troubleshooting
+## 🛠️ Troubleshooting
 
 ### Common Issues
+1. **GPU not detected**: Ensure NVIDIA Docker runtime is installed
+2. **Memory errors**: Increase container memory limits
+3. **Connection refused**: Check service dependencies and health checks
+4. **Slow performance**: Verify GPU allocation and model caching
 
-1. **GPU not detected**: Check NVIDIA drivers and Docker runtime
-   ```bash
-   nvidia-smi
-   docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi
-   ```
-
-2. **Model download fails**: Verify internet connection and disk space
-   ```bash
-   df -h
-   ping huggingface.co
-   ```
-
-3. **Memory errors**: Reduce concurrent jobs or add more RAM
-   ```bash
-   # Edit .env
-   MAX_CONCURRENT_JOBS=2
-   ```
-
-4. **Slow generation**: Check GPU utilization
-   ```bash
-   watch -n 1 nvidia-smi
-   ```
-
-### Debug Commands
+### Health Checks
 ```bash
 # Check service status
 docker-compose ps
 
-# View service logs
+# View logs
 docker-compose logs -f ai-service
+docker-compose logs -f web-service
 
-# Restart services
-docker-compose restart
-
-# Access Python backend shell
-docker exec -it musicgen-ai bash
-
-# Test API endpoints
+# Test endpoints
 curl http://localhost:8000/health
-curl -X POST http://localhost:8000/api/generate \
-  -H "Content-Type: application/json" \
-  -d '{"model": "DiffRhythm", "prompt": "test", "duration": 30}'
-
-# Redis debugging
-redis-cli monitor
-redis-cli info memory
+curl http://localhost:3000
 ```
 
-## 🎯 Production Checklist
+## 🔄 CI/CD Integration
 
-- [ ] Environment variables configured (.env)
-- [ ] SSL/TLS certificates installed
-- [ ] Firewall rules configured (ports 80, 443)
-- [ ] Backup strategy implemented
-- [ ] Monitoring and alerts set up
-- [ ] Resource limits configured
-- [ ] Health checks enabled
-- [ ] Log rotation configured
-- [ ] GPU drivers installed (if applicable)
-- [ ] Domain DNS configured
+### GitHub Actions
+```yaml
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /opt/musicgen
+            git pull origin main
+            docker-compose down
+            docker-compose up -d --build
+```
+
+## 📈 Scaling
+
+### Horizontal Scaling
+```yaml
+version: '3.8'
+
+services:
+  ai-service:
+    # ... (config)
+    deploy:
+      replicas: 2
+      
+  nginx:
+    # ... (config)
+    depends_on:
+      - ai-service
+    load_balancer:
+      round_robin: true
+```
+
+### Database Scaling
+```yaml
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: musicgen
+      POSTGRES_USER: musicgen
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+volumes:
+  postgres-data:
+```
