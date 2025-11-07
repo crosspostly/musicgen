@@ -77,8 +77,9 @@ async def health_check():
     """Health check endpoint"""
     try:
         # Check database connection
+        from sqlalchemy import text
         with app.state.job_queue.get_db_session() as db:
-            db.execute("SELECT 1")
+            db.execute(text("SELECT 1"))
         
         # Get job stats
         stats = app.state.job_queue.get_job_stats()
