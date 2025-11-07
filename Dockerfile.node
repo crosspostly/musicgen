@@ -1,0 +1,45 @@
+# MusicGen Local - React Frontend
+# Multistage build: builder stage + static server stage
+
+# Stage 1: Builder
+FROM node:18-alpine as builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+COPY vite.config.ts ./
+
+# Install dependencies
+RUN npm ci --prefer-offline
+
+# Copy source code
+COPY index.html ./
+COPY index.tsx ./
+COPY App.tsx ./
+COPY types.ts ./
+COPY components/ ./components/
+COPY screens/ ./screens/
+COPY services/ ./services/
+
+# Build React app with Vite
+RUN npm run build
+
+# Stage 2: Runtime (Python http.server for serving static files)
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copy built frontend from builder
+COPY --from=builder /app/dist ./dist
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:3000/').getcode()" || exit 1
+
+# Serve static files with Python http.server
+CMD ["python", "-m", "http.server", "3000", "--directory", "dist"]
