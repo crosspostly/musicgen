@@ -1,40 +1,21 @@
 # 🚀 MusicGen Local - Setup Guide
 
-**Полное руководство по установке и запуску локальной AI-студии для создания музыки**
+Complete installation guide for MusicGen Local MVP.
 
 ---
 
-## 📋 Что это?
+## 📋 What is MusicGen Local?
 
-MusicGen Local - это локальная платформа для:
-- **Создания музыки** с помощью AI (DiffRhythm, YuE, Bark)
-- **Обработки аудио** (зацикливание, метаданные, обложки)
-- **Загрузки на стриминг** (FreshTunes → Spotify, Apple Music, YouTube)
-
-**Все работает локально на вашем компьютере. Никаких облачных подписок!**
+Local AI music generation platform:
+- **Create music** with AI (DiffRhythm)
+- **Process audio** (loops, metadata)
+- **100% local** - no cloud dependencies
 
 ---
 
-## ⚡ Быстрый старт (5 минут)
+## ⚡ Quick Start (5 minutes)
 
-### Вариант 1: Автоматическая установка (рекомендуется)
-
-```bash
-# Скачайте и запустите установщик
-git clone https://github.com/crosspostly/musicgen
-cd musicgen
-chmod +x install.sh
-./install.sh
-```
-
-Установщик автоматически:
-✅ Проверит системные требования
-✅ Установит все зависимости
-✅ Настроит локальный Redis
-✅ Скачает AI модели (опционально)
-✅ Запустит все сервисы
-
-### Вариант 2: Docker (самый простой)
+### Option 1: Docker (Recommended)
 
 ```bash
 git clone https://github.com/crosspostly/musicgen
@@ -42,249 +23,224 @@ cd musicgen
 docker-compose up
 ```
 
-Готово! Откройте http://localhost:3000
+Open http://localhost:3000
 
----
+### Option 2: Local Development
 
-## 💻 Системные требования
-
-### Минимальные (только обработка музыки)
-- **ОС**: Windows 10/11, macOS 12+, Ubuntu 20.04+
-- **RAM**: 4GB
-- **Диск**: 2GB свободного места
-- **ПО**: Node.js 18+, Python 3.9+
-
-### Рекомендуемые (с AI генерацией)
-- **ОС**: Windows 10/11, macOS 12+, Ubuntu 20.04+
-- **RAM**: 8GB+ 
-- **Диск**: 10GB+ свободного места
-- **GPU**: NVIDIA (CUDA) или Apple Silicon (MPS)
-- **ПО**: Node.js 18+, Python 3.9+, Redis 7+
-
----
-
-## 🔧 Ручная установка
-
-### Шаг 1: Установите зависимости
-
-#### Windows
-```powershell
-# Установите Node.js с https://nodejs.org
-# Установите Python с https://python.org
-# Установите Redis
-winget install Redis.Redis
-```
-
-#### macOS
 ```bash
-brew install node python@3.9 redis
+git clone https://github.com/crosspostly/musicgen
+cd musicgen
+cp .env.example .env
+
+# Backend (Python)
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Frontend (npm for dev only)
+npm install
+
+# Start services (3 terminals)
+redis-server                                              # Terminal 1
+python -m uvicorn python.main:app --reload --port 8000    # Terminal 2
+npm run dev                                               # Terminal 3
 ```
 
-#### Linux (Ubuntu/Debian)
+Open http://localhost:3000
+
+---
+
+## 💻 System Requirements
+
+### Minimum (Audio Processing Only)
+- **OS**: Windows 10/11, macOS 12+, Ubuntu 20.04+
+- **RAM**: 4GB
+- **Storage**: 2GB
+- **Software**: Python 3.9+, FFmpeg
+
+### Recommended (With AI Generation)
+- **OS**: Windows 10/11, macOS 12+, Ubuntu 20.04+
+- **RAM**: 8GB+
+- **Storage**: 10GB+
+- **GPU**: NVIDIA (CUDA) or Apple Silicon (MPS)
+- **Software**: Python 3.9+, FFmpeg, Redis 7+
+
+**Note:** Node.js 16+ is only needed for frontend development (npm/Vite). The backend runs entirely on Python.
+
+---
+
+## 🔧 Manual Installation
+
+### Step 1: Install Dependencies
+
+**Windows:**
+```powershell
+# Install Python from https://python.org
+# Install FFmpeg: winget install FFmpeg
+# Install Redis: winget install Redis.Redis
+```
+
+**macOS:**
+```bash
+brew install python@3.9 ffmpeg redis
+```
+
+**Linux (Ubuntu/Debian):**
 ```bash
 sudo apt update
-sudo apt install -y nodejs npm python3.9 python3-pip redis-server
+sudo apt install -y python3.9 python3-pip ffmpeg redis-server
 ```
 
-### Шаг 2: Клонируйте репозиторий
+### Step 2: Clone Repository
 
 ```bash
 git clone https://github.com/crosspostly/musicgen
 cd musicgen
 ```
 
-### Шаг 3: Настройте окружение
+### Step 3: Configure Environment
 
 ```bash
-# Скопируйте пример конфигурации
 cp .env.example .env
-
-# Откройте .env и добавьте свои API ключи (опционально)
-nano .env
+# Edit .env with your settings (optional)
 ```
 
-### Шаг 4: Установите пакеты
+### Step 4: Install Python Packages
 
 ```bash
-# Backend (Python)
-python -m pip install -r requirements.txt
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-# Frontend (Node.js)
+### Step 5: Install Frontend Dev Tools (Optional)
+
+Only needed if you want to modify the frontend:
+
+```bash
+# Node.js from https://nodejs.org
 npm install
 ```
 
-### Шаг 5: Запустите сервисы
+### Step 6: Start Services
 
-Откройте **3 терминала**:
-
-**Терминал 1 - Redis (локальная база данных)**
+**Terminal 1 - Redis (Job Queue):**
 ```bash
 redis-server
 ```
 
-**Терминал 2 - Backend (AI движок)**
+**Terminal 2 - Python Backend:**
 ```bash
-python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn python.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-**Терминал 3 - Frontend (веб-интерфейс)**
+**Terminal 3 - Frontend Dev Server (if developing):**
 ```bash
 npm run dev
 ```
 
-Готово! Откройте http://localhost:3000
-
----
-
-## 🎵 AI Модели (опционально)
-
-Выберите нужные модели при первом запуске:
-
-### 1. DiffRhythm ⭐ (рекомендуется)
-- **Размер**: 3.2GB
-- **Скорость**: ~10 сек на трек (GPU)
-- **Качество**: Отличное, естественный вокал
-- **Длина**: До 4:45 минут
-- **Идеально для**: Стриминг платформ
-
-### 2. YuE 
-- **Размер**: 2.8GB
-- **Скорость**: ~30-40 сек (GPU)
-- **Качество**: Отличное, синхронный вокал
-- **Особенность**: Контроль над инструментами
-- **Идеально для**: Rock, Metal, сложные аранжировки
-
-### 3. Bark
-- **Размер**: 1.5GB
-- **Скорость**: ~20 сек на сегмент
-- **Качество**: 100+ голосовых пресетов
-- **Особенность**: Спецэффекты (смех, шепот)
-- **Идеально для**: Интро, аутро, спецэффекты
-
-**Модели скачиваются автоматически при первом использовании!**
-
----
-
-## 🔗 Локальный Redis
-
-Redis используется для:
-- Очередь задач генерации музыки
-- Хранение состояния задач
-- Кэширование результатов
-
-### Настройка Redis
-
-**Всё уже настроено автоматически!** Redis запускается локально на порту 6379.
-
+**Or serve pre-built frontend:**
 ```bash
-# Проверить статус Redis
-redis-cli ping
-# Должен вернуть: PONG
+npm run build
+python -m http.server 3000 --directory dist
+```
 
-# Просмотр задач
+Open http://localhost:3000
+
+---
+
+## 🎵 AI Models
+
+Models download automatically on first use:
+
+### DiffRhythm ⭐ (Recommended)
+- **Size**: 3.2GB
+- **Speed**: ~10 sec/track (GPU), ~30-60 sec (CPU)
+- **Quality**: Excellent, natural vocals
+- **Duration**: Up to 4:45 minutes
+- **Best for**: Streaming platforms
+
+---
+
+## 🔗 Redis Configuration
+
+Redis is used for:
+- Job queue for music generation
+- Task state persistence
+- Progress tracking
+
+**Default configuration (local):**
+```bash
+# Check Redis status
+redis-cli ping
+# Should return: PONG
+
+# View jobs
 redis-cli keys "*"
 
-# Очистка кэша (если нужно)
+# Clear cache (if needed)
 redis-cli FLUSHALL
 ```
 
-### Конфигурация (в .env)
+**Environment variable:**
 ```env
-# Локальный Redis (без пароля)
 REDIS_URL=redis://localhost:6379
-
-# Максимальная память для Redis (1GB)
-REDIS_MAX_MEMORY=1gb
 ```
 
-**Никаких внешних подключений не требуется!** Всё работает локально.
-
 ---
 
-## 🎨 Функции платформы
-
-### 1. Генерация музыки (с AI моделями)
-- Генерация треков по текстовому описанию
-- Выбор жанра, настроения, длительности
-- Экспорт в MP3/WAV/FLAC
-
-### 2. Audio Loop Creator (без AI)
-- Зацикливание треков на 1-10 часов
-- Плавные переходы без щелчков
-- Идеально для YouTube 24/7 стримов
-
-### 3. Редактор метаданных (без AI)
-- Пакетное редактирование ID3 тегов
-- Автозаполнение через MusicBrainz API
-- Поддержка всех форматов
-
-### 4. Cover Auto Cropper (без AI)
-- Умная обрезка под все форматы
-- Квадрат (1000x1000) для Spotify/Apple Music
-- Wide (1280x720) для YouTube
-- Пакетная обработка
-
-### 5. Загрузка на стриминг (без AI)
-- FreshTunes интеграция
-- Автозагрузка на все платформы
-- YouTube синхронизация
-
----
-
-## 📊 Структура проекта
+## 📊 Project Structure
 
 ```
 musicgen/
-├── backend/                # Python FastAPI сервер
-│   ├── main.py            # Точка входа API
-│   ├── api/               # API endpoints
-│   ├── ai-engines/        # AI модели (DiffRhythm, YuE, Bark)
-│   └── utils/             # Утилиты (audio, storage)
+├── python/                # Python FastAPI backend
+│   ├── main.py           # FastAPI entry point
+│   ├── api/              # API endpoints
+│   ├── services/         # Business logic (DiffRhythm, loops)
+│   └── tests/            # Backend tests
 │
-├── frontend/              # React веб-интерфейс
-│   ├── src/
-│   │   ├── screens/       # Экраны UI
-│   │   ├── components/    # Компоненты
-│   │   └── services/      # API клиенты
-│   └── public/
+├── src/                  # React frontend
+│   ├── App.tsx           # Main app
+│   ├── screens/          # UI screens
+│   ├── components/       # Reusable components
+│   └── services/         # API clients
 │
-├── models/                # Скачанные AI модели
-│   └── cache/             # Кэш HuggingFace
+├── models/               # AI models cache
+│   └── cache/            # HuggingFace cache
 │
-├── output/                # Сгенерированные файлы
-│   ├── audio/             # Аудио треки
-│   └── covers/            # Обложки
+├── output/               # Generated files
+│   ├── audio/            # Audio tracks
+│   └── exports/          # Loop exports
 │
-├── docker-compose.yml     # Docker конфигурация
-├── requirements.txt       # Python зависимости
-├── package.json           # Node.js зависимости
-├── .env.example           # Пример конфигурации
-└── install.sh             # Автоустановщик
+├── docker-compose.yml    # Docker configuration
+├── requirements.txt      # Python dependencies
+└── package.json          # Frontend dev dependencies (npm/Vite)
 ```
 
 ---
 
-## 🚨 Решение проблем
+## 🚨 Troubleshooting
 
-### Redis не запускается
+### Redis Not Starting
 ```bash
-# Проверьте, не занят ли порт 6379
+# Check if port 6379 is in use
 lsof -i :6379  # macOS/Linux
 netstat -ano | findstr :6379  # Windows
 
-# Если занят, остановите процесс или измените порт в .env
+# Change port in .env if needed
+REDIS_PORT=6380
 ```
 
-### AI модель не скачивается
+### AI Model Download Fails
 ```bash
-# Проверьте интернет-соединение
+# Check internet connection
 ping huggingface.co
 
-# Ручная загрузка модели
+# Manual download
 python -c "from transformers import AutoModel; AutoModel.from_pretrained('ASLP-lab/DiffRhythm-full')"
 ```
 
-### GPU не определяется
+### GPU Not Detected
 ```bash
 # NVIDIA
 nvidia-smi
@@ -292,40 +248,33 @@ nvidia-smi
 # Apple Silicon
 python -c "import torch; print(torch.backends.mps.is_available())"
 
-# Если GPU недоступен, будет использоваться CPU (медленнее)
+# CPU fallback is automatic (slower)
 ```
 
-### Порты заняты
+### Port Already in Use
 ```bash
-# Измените порты в .env
-BACKEND_PORT=8001  # вместо 8000
-FRONTEND_PORT=3001 # вместо 3000
-REDIS_PORT=6380    # вместо 6379
+# Change ports in .env
+BACKEND_PORT=8001  # instead of 8000
+FRONTEND_PORT=3001 # instead of 3000
+REDIS_PORT=6380    # instead of 6379
 ```
 
 ---
 
-## 📖 Дополнительная документация
+## 📖 Additional Documentation
 
-- **[MVP-TASKS.md](MVP-TASKS.md)** - План разработки и задачи
-- **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Техническая архитектура
+- **[README.md](README.md)** - Quick overview
+- **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Technical architecture
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment
 
 ---
 
-## 💬 Поддержка
+## ⭐ Next Steps
 
-- **Issues**: [GitHub Issues](https://github.com/crosspostly/musicgen/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/crosspostly/musicgen/discussions)
+1. **Start the application**: Use Docker or local setup
+2. **Select DiffRhythm model**: Recommended for MVP
+3. **Generate your first track**: Enter text prompt
+4. **Create audio loops**: 1-10 hours for streaming
+5. **Edit metadata**: Add artist, album, genre info
 
----
-
-## ⭐ Что дальше?
-
-1. **Запустите приложение**: `./install.sh` или `docker-compose up`
-2. **Выберите AI модели**: DiffRhythm (рекомендуется для начала)
-3. **Создайте первый трек**: Опишите желаемую музыку текстом
-4. **Обработайте аудио**: Зациклите для YouTube или добавьте метаданные
-5. **Загрузите на стриминг**: Используйте FreshTunes интеграцию
-
-**Начните зарабатывать на музыке уже сегодня!** 🎵💰
+**Start creating music locally!** 🎵
