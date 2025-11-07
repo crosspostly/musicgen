@@ -3,9 +3,11 @@ DiffRhythm AI Music Generation Service
 
 FastAPI microservice for generating music using DiffRhythm model.
 Supports async job processing with progress tracking and multi-format export.
+Includes SQLAlchemy database persistence for jobs, tracks, and loops.
 """
 
 import os
+import sys
 import uuid
 import asyncio
 import logging
@@ -21,6 +23,16 @@ from pydub import AudioSegment
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
+
+# Add parent directory to path for database imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from app.database import (
+    JobRepository,
+    TrackRepository,
+    get_session,
+    init_database,
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -180,16 +192,39 @@ class DiffRhythmEngine:
 
 # Job store for tracking jobs
 class JobStore:
-    """In-memory job store (in production, use Redis or database)"""
+    """Database-backed job store using SQLAlchemy"""
     
     def __init__(self):
-        self.jobs: Dict[str, JobInfo] = {}
+        self.jobs: Dict[str, JobInfo] = {}  # In-memory cache for performance
     
     def create_job(self, request_data: GenerationRequest) -> str:
-        """Create new job and return job ID"""
+        """Create new job in database and return job ID"""
         job_id = str(uuid.uuid4())
         now = datetime.now()
         
+        # Save to database
+        session = get_session()
+        try:
+            repo = JobRepository(session)
+            repo.create(
+                job_id=job_id,
+                job_type="diffrhythm",
+                status=JobStatus.PENDING.value,
+                prompt=request_data.prompt,
+                metadata={
+                    "durationSeconds": request_data.durationSeconds,
+                    "language": request_data.language,
+                    "genre": request_data.genre,
+                    "mood": request_data.mood,
+                }
+            )
+            logger.info(f"Created job {job_id} in database")
+        except Exception as e:
+            logger.error(f"Failed to create job in database: {e}")
+        finally:
+            session.close()
+        
+        # Keep in-memory cache for quick access
         job = JobInfo(
             job_id=job_id,
             status=JobStatus.PENDING,
@@ -203,17 +238,38 @@ class JobStore:
         return job_id
     
     def get_job(self, job_id: str) -> Optional[JobInfo]:
-        """Get job by ID"""
+        """Get job from in-memory cache"""
         return self.jobs.get(job_id)
     
     def update_job(self, job_id: str, **kwargs):
-        """Update job with new values"""
+        """Update job in memory and database"""
         if job_id in self.jobs:
             job = self.jobs[job_id]
             for key, value in kwargs.items():
                 if hasattr(job, key):
                     setattr(job, key, value)
             job.updated_at = datetime.now()
+            
+            # Also update in database
+            session = get_session()
+            try:
+                repo = JobRepository(session)
+                update_data = {
+                    "status": job.status.value if isinstance(job.status, JobStatus) else job.status,
+                    "progress": job.progress,
+                }
+                if job.error:
+                    update_data["error"] = job.error
+                if job.file_manifest:
+                    update_data["file_manifest"] = {
+                        "wav_path": job.wav_path,
+                        "mp3_path": job.mp3_path,
+                    }
+                repo.update(job_id, **update_data)
+            except Exception as e:
+                logger.error(f"Failed to update job in database: {e}")
+            finally:
+                session.close()
 
 # Audio export utilities
 class AudioExporter:
@@ -276,6 +332,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on application startup"""
+    try:
+        init_database()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        raise
+
 async def process_generation_job(job_id: str, request_data: GenerationRequest):
     """Background task to process generation job"""
     
@@ -308,6 +375,30 @@ async def process_generation_job(job_id: str, request_data: GenerationRequest):
         
         # Get audio duration
         duration = len(audio) / 44100
+        
+        # Save track to database
+        session = get_session()
+        try:
+            track_repo = TrackRepository(session)
+            track_id = str(uuid.uuid4())
+            track_repo.create(
+                track_id=track_id,
+                job_id=job_id,
+                duration=duration,
+                metadata={
+                    "prompt": request_data.prompt,
+                    "language": request_data.language,
+                    "genre": request_data.genre,
+                    "mood": request_data.mood,
+                },
+                file_path_wav=wav_path,
+                file_path_mp3=mp3_path
+            )
+            logger.info(f"Created track {track_id} for job {job_id}")
+        except Exception as e:
+            logger.error(f"Failed to save track for job {job_id}: {e}")
+        finally:
+            session.close()
         
         # Update job with results
         job_store.update_job(
