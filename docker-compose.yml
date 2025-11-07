@@ -48,9 +48,9 @@ services:
         condition: service_healthy
   
   # ========================================
-  # Node.js Web Service (Frontend)
+  # React Frontend (Static Build)
   # ========================================
-  # Веб-интерфейс для взаимодействия
+  # Веб-интерфейс React SPA (собирается с npm/Vite)
   # Порт: 3000
   
   web-service:

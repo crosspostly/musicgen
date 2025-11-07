@@ -26,84 +26,9 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
-### Production Docker Compose
-```yaml
-version: '3.8'
-
-services:
-  ai-service:
-    build:
-      context: .
-      dockerfile: Dockerfile.python
-    container_name: musicgen-ai
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./models:/app/models
-      - ./output:/app/output
-      - ./logs:/app/logs
-    environment:
-      - MODEL_CACHE_DIR=/app/models/cache
-      - CUDA_VISIBLE_DEVICES=0
-      - REDIS_URL=redis://redis:6379
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
-  web-service:
-    build:
-      context: .
-      dockerfile: Dockerfile.node
-    container_name: musicgen-web
-    ports:
-      - "3000:3000"
-    depends_on:
-      ai-service:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      - AI_SERVICE_URL=http://ai-service:8000
-      - NODE_ENV=production
-      - REDIS_URL=redis://redis:6379
-    volumes:
-      - ./output:/app/output
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    container_name: musicgen-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    restart: unless-stopped
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-volumes:
-  redis-data:
-    driver: local
-```
-
 ## 🔧 Dockerfiles
 
-### Dockerfile.python
+### Dockerfile.python (Backend)
 ```dockerfile
 FROM python:3.9-slim
 
@@ -121,8 +46,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Application code
-COPY backend/ ./backend/
-COPY ai-engines/ ./ai-engines/
+COPY python/ ./python/
 COPY models/ ./models/
 
 # Create directories
@@ -134,78 +58,34 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 
 EXPOSE 8000
 
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "python.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-### Dockerfile.node
+### Dockerfile.frontend (Static Frontend)
 ```dockerfile
-FROM node:18-alpine
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm ci --only=production
-
-# Application code
-COPY frontend/ ./frontend/
-COPY public/ ./public/
+RUN npm ci
 
 # Build frontend
-RUN cd frontend && npm run build
+COPY . .
+RUN npm run build
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:3000 || exit 1
+# Serve with Python
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copy built frontend
+COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start"]
-```
-
-## 🌐 Cloud Deployment
-
-### AWS EC2 + ECS
-```bash
-# 1. Create EC2 instance with GPU
-aws ec2 run-instances \
-  --image-id ami-0abcdef1234567890 \
-  --instance-type p3.2xlarge \
-  --key-name my-key-pair \
-  --security-group-ids sg-903004f8
-
-# 2. Install Docker
-sudo yum update -y
-sudo yum install -y docker
-sudo systemctl start docker
-
-# 3. Deploy application
-git clone https://github.com/crosspostly/musicgen
-cd musicgen
-docker-compose up -d
-```
-
-### Google Cloud Platform
-```bash
-# 1. Create GCE instance with GPU
-gcloud compute instances create musicgen-instance \
-  --zone=us-central1-a \
-  --machine-type=n1-standard-4 \
-  --accelerator=type=nvidia-tesla-k80,count=1
-
-# 2. Install NVIDIA drivers
-curl -O https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
-sudo mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
-wget https://developer.download.nvidia.com/compute/cuda/12.2.0/local_installers/cuda-repo-ubuntu2004-12-2-local_12.2.0-535.54.03-1_amd64.deb
-sudo dpkg -i cuda-repo-ubuntu2004-12-2-local_12.2.0-535.54.03-1_amd64.deb
-sudo cp /var/cuda-repo-ubuntu2004-12-2-local/cuda-*-keyring.gpg /usr/share/keyrings/
-sudo apt-get update
-sudo apt-get -y install cuda-toolkit-12-2
-
-# 3. Deploy application
-git clone https://github.com/crosspostly/musicgen
-cd musicgen
-docker-compose up -d
+CMD ["python", "-m", "http.server", "3000", "--directory", "dist"]
 ```
 
 ## 🔄 Reverse Proxy (Nginx)
@@ -217,11 +97,11 @@ events {
 }
 
 http {
-    upstream ai_service {
+    upstream python_backend {
         server ai-service:8000;
     }
 
-    upstream web_service {
+    upstream frontend {
         server web-service:3000;
     }
 
@@ -231,18 +111,16 @@ http {
 
         # Frontend
         location / {
-            proxy_pass http://web_service;
+            proxy_pass http://frontend;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         }
 
-        # API endpoints
+        # API endpoints (Python FastAPI)
         location /api/ {
-            proxy_pass http://ai_service;
+            proxy_pass http://python_backend;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             
             # Increase timeout for long operations
             proxy_read_timeout 600s;
@@ -278,73 +156,69 @@ services:
     restart: unless-stopped
 
   ai-service:
-    # ... (same as above)
+    # Python FastAPI backend
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    # ... (rest of configuration)
 
   web-service:
-    # ... (same as above)
+    # Static frontend server
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    # ... (rest of configuration)
 ```
 
-## 📊 Monitoring & Logging
+## 🌐 Cloud Deployment
 
-### Prometheus + Grafana
-```yaml
-version: '3.8'
+### AWS EC2 + GPU
+```bash
+# 1. Create EC2 instance with GPU
+aws ec2 run-instances \
+  --image-id ami-0abcdef1234567890 \
+  --instance-type p3.2xlarge \
+  --key-name my-key-pair \
+  --security-group-ids sg-903004f8
 
-services:
-  prometheus:
-    image: prom/prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    restart: unless-stopped
+# 2. Install Docker
+sudo yum update -y
+sudo yum install -y docker
+sudo systemctl start docker
 
-  grafana:
-    image: grafana/grafana
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    volumes:
-      - grafana-data:/var/lib/grafana
-    restart: unless-stopped
+# 3. Install NVIDIA Docker runtime
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
+  sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+sudo apt-get update && sudo apt-get install -y nvidia-docker2
+sudo systemctl restart docker
 
-volumes:
-  grafana-data:
+# 4. Deploy application
+git clone https://github.com/crosspostly/musicgen
+cd musicgen
+docker-compose up -d
 ```
 
-### Log Aggregation (ELK Stack)
-```yaml
-version: '3.8'
+### Google Cloud Platform
+```bash
+# 1. Create GCE instance with GPU
+gcloud compute instances create musicgen-instance \
+  --zone=us-central1-a \
+  --machine-type=n1-standard-4 \
+  --accelerator=type=nvidia-tesla-k80,count=1
 
-services:
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.5.0
-    environment:
-      - discovery.type=single-node
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    volumes:
-      - elasticsearch-data:/usr/share/elasticsearch/data
-    restart: unless-stopped
+# 2. SSH into instance
+gcloud compute ssh musicgen-instance
 
-  logstash:
-    image: docker.elastic.co/logstash/logstash:8.5.0
-    volumes:
-      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-    depends_on:
-      - elasticsearch
-    restart: unless-stopped
+# 3. Install dependencies
+sudo apt-get update
+sudo apt-get install -y docker.io docker-compose
 
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.5.0
-    ports:
-      - "5601:5601"
-    depends_on:
-      - elasticsearch
-    restart: unless-stopped
-
-volumes:
-  elasticsearch-data:
+# 4. Deploy application
+git clone https://github.com/crosspostly/musicgen
+cd musicgen
+docker-compose up -d
 ```
 
 ## 🔒 SSL/TLS Setup
@@ -388,7 +262,21 @@ server {
 
 ## 🚀 Performance Optimization
 
-### Production Tuning
+### Production Environment Variables
+```bash
+# Python Backend
+MODEL_CACHE_DIR=/app/models/cache
+CUDA_VISIBLE_DEVICES=0
+REDIS_URL=redis://redis:6379
+MAX_CONCURRENT_JOBS=5
+JOB_TIMEOUT=300
+WORKERS=4
+
+# Frontend (static build)
+VITE_API_URL=https://your-domain.com
+```
+
+### Docker Resource Limits
 ```yaml
 # docker-compose.prod.yml
 version: '3.8'
@@ -414,18 +302,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
-          cpus: '1.0'
-```
-
-### Database Optimization
-```bash
-# Redis persistence
-redis-cli CONFIG SET save "900 1 300 10 60 10000"
-
-# Memory management
-redis-cli CONFIG SET maxmemory 1gb
-redis-cli CONFIG SET maxmemory-policy allkeys-lru
+          memory: 512M
+          cpus: '0.5'
 ```
 
 ## 🔧 Maintenance
@@ -435,7 +313,7 @@ redis-cli CONFIG SET maxmemory-policy allkeys-lru
 #!/bin/bash
 # backup.sh
 
-# Backup models
+# Backup AI models
 tar -czf models-backup-$(date +%Y%m%d).tar.gz ./models/
 
 # Backup Redis data
@@ -445,8 +323,8 @@ docker cp musicgen-redis:/data/dump.rdb ./redis-backup-$(date +%Y%m%d).rdb
 # Backup output files
 tar -czf output-backup-$(date +%Y%m%d).tar.gz ./output/
 
-# Upload to cloud storage
-aws s3 cp ./models-backup-$(date +%Y%m%d).tar.gz s3://musicgen-backups/
+# Upload to cloud storage (optional)
+# aws s3 cp ./models-backup-$(date +%Y%m%d).tar.gz s3://musicgen-backups/
 ```
 
 ### Health Checks
@@ -454,9 +332,13 @@ aws s3 cp ./models-backup-$(date +%Y%m%d).tar.gz s3://musicgen-backups/
 #!/bin/bash
 # health-check.sh
 
-# Check services
+# Check Python backend
 curl -f http://localhost:8000/health || exit 1
+
+# Check frontend
 curl -f http://localhost:3000 || exit 1
+
+# Check Redis
 redis-cli ping || exit 1
 
 # Check disk space
@@ -467,30 +349,94 @@ df -h | grep -E "/models|/output" | awk '{print $5}' | sed 's/%//' | while read 
 done
 ```
 
+## 📊 Monitoring
+
+### Docker Stats
+```bash
+# Real-time resource monitoring
+docker stats
+
+# Check logs
+docker-compose logs -f ai-service
+docker-compose logs -f web-service
+```
+
+### Python Backend Logs
+```python
+# Add to python/main.py
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('/app/logs/app.log'),
+        logging.StreamHandler()
+    ]
+)
+```
+
 ## 🚨 Troubleshooting
 
 ### Common Issues
+
 1. **GPU not detected**: Check NVIDIA drivers and Docker runtime
+   ```bash
+   nvidia-smi
+   docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi
+   ```
+
 2. **Model download fails**: Verify internet connection and disk space
+   ```bash
+   df -h
+   ping huggingface.co
+   ```
+
 3. **Memory errors**: Reduce concurrent jobs or add more RAM
-4. **Slow generation**: Check GPU utilization and model caching
+   ```bash
+   # Edit .env
+   MAX_CONCURRENT_JOBS=2
+   ```
+
+4. **Slow generation**: Check GPU utilization
+   ```bash
+   watch -n 1 nvidia-smi
+   ```
 
 ### Debug Commands
 ```bash
-# Check service logs
-docker-compose logs -f ai-service
-docker-compose logs -f web-service
+# Check service status
+docker-compose ps
 
-# Monitor resources
-docker stats
-htop
-nvidia-smi
+# View service logs
+docker-compose logs -f ai-service
+
+# Restart services
+docker-compose restart
+
+# Access Python backend shell
+docker exec -it musicgen-ai bash
 
 # Test API endpoints
 curl http://localhost:8000/health
-curl http://localhost:3000
+curl -X POST http://localhost:8000/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{"model": "DiffRhythm", "prompt": "test", "duration": 30}'
 
 # Redis debugging
 redis-cli monitor
 redis-cli info memory
 ```
+
+## 🎯 Production Checklist
+
+- [ ] Environment variables configured (.env)
+- [ ] SSL/TLS certificates installed
+- [ ] Firewall rules configured (ports 80, 443)
+- [ ] Backup strategy implemented
+- [ ] Monitoring and alerts set up
+- [ ] Resource limits configured
+- [ ] Health checks enabled
+- [ ] Log rotation configured
+- [ ] GPU drivers installed (if applicable)
+- [ ] Domain DNS configured
