@@ -9,23 +9,24 @@
 
 ## 🚀 Quick Start
 
+For complete installation instructions, see **[INSTALL.md](INSTALL.md)**.
+
 ```bash
-# Clone the repository
+# Quick setup with Docker (recommended)
 git clone https://github.com/crosspostly/musicgen
 cd musicgen
-
-# Option 1: Docker (recommended)
 docker-compose up
 
-# Option 2: Local development
-npm run install:all  # Install frontend and backend dependencies
-cp .env.example .env  # Configure environment variables
-npm run dev          # Start both frontend and backend
+# Or use the development script
+./start-dev.sh
 ```
 
-**URLs:**
+**Access URLs:**
 - http://localhost:3000 - Web UI
-- http://localhost:8000 - Python API
+- http://localhost:3001 - Backend API  
+- http://localhost:8000 - Python AI Service
+
+**📖 Detailed Installation**: [INSTALL.md](INSTALL.md) - Complete setup guide with troubleshooting
 
 ## ✨ Core Features
 
@@ -82,38 +83,22 @@ React SPA (Vite) ↔ Python FastAPI ↔ DiffRhythm AI
 
 ## 🛠️ Development
 
-### System Requirements
-- **Python** 3.9+ (backend runtime)
-- **Node.js** 16+ (frontend dev and some backend services)
-- **Docker** (optional but recommended)
-- **Redis** 7+ (job queue)
-- **FFmpeg** (audio processing)
-- **Free space**: 10GB+ for AI models
-- **GPU optional** (NVIDIA CUDA recommended)
+### Development Setup
 
-### Local Development Setup
+📖 **For complete development setup instructions, see [INSTALL.md](INSTALL.md)**
 
+**Quick Development Commands:**
 ```bash
-# 1. Environment setup
-cp .env.example .env
+# Install all dependencies
+npm run install:all
 
-# 2. Backend setup (Python)
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+# Start all services
+./start-dev.sh
 
-# 3. Frontend setup (npm)
-npm install
-
-# 4. Start services (3 terminals)
-# Terminal 1 - Redis
-redis-server
-
-# Terminal 2 - Python backend
-python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
-
-# Terminal 3 - Frontend dev server
-npm run dev
+# Or start individually
+npm run dev:frontend  # React dev server (port 3000)
+npm run dev:backend   # Node.js backend (port 3001)
+cd python && python services/diffrhythm_service.py  # Python AI service (port 8000)
 ```
 
 ### Available Scripts
@@ -212,6 +197,7 @@ npm test
 
 ## 📖 Documentation
 
+- **[INSTALL.md](INSTALL.md)** - Complete installation and setup guide ⭐
 - **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Technical architecture and setup
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide
 

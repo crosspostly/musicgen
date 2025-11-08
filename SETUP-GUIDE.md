@@ -1,6 +1,10 @@
 # 🚀 MusicGen Local - Setup Guide
 
-Complete installation guide for MusicGen Local MVP.
+> **📖 For the most up-to-date installation instructions, see [INSTALL.md](INSTALL.md)**
+>
+> This guide provides additional context and troubleshooting information to complement the main installation guide.
+
+Complete setup guide for MusicGen Local MVP.
 
 ---
 
@@ -263,6 +267,7 @@ REDIS_PORT=6380    # instead of 6379
 
 ## 📖 Additional Documentation
 
+- **[INSTALL.md](INSTALL.md)** - Complete installation guide ⭐
 - **[README.md](README.md)** - Quick overview
 - **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Technical architecture
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment
