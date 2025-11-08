@@ -1,21 +1,36 @@
+# Core Web Framework
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Configuration & Validation
 pydantic==2.5.0
 pydantic-settings==2.0.3
+
+# Database
 SQLAlchemy==2.0.22
 alembic==1.12.1
+
+# HTTP Clients
 httpx==0.25.2
 requests==2.31.0
+
+# ML/AI Core
 torch>=2.2.0
 torchaudio>=2.2.0
 numpy>=1.24.3
-soundfile==0.12.1
-pydub==0.25.1
-python-multipart==0.0.6
+scipy>=1.11.0
+
+# AI Models
 diffusers>=0.24.0
 transformers>=4.36.0
 accelerate>=0.25.0
-scipy>=1.11.0
+
+# Audio Processing
+soundfile==0.12.1
+pydub==0.25.1
+
+# Testing
 pytest==7.4.3
 pytest-asyncio==0.21.1
 pytest-cov==4.1.0
