@@ -1,15 +1,19 @@
 """
-Main FastAPI application with job queue service integration
+FastAPI application for DiffRhythm music generation with direct prompt → track flow
 """
 
+import os
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from .core.database import init_db
-from .api import jobs
-from .services.job_queue import JobQueueService
+from .config import get_settings
+from .database import init_database
+from .api import generation
+from .dependencies import set_diffrhythm_service
+from .services.diffrhythm import DiffRhythmService
 
 # Configure logging
 logging.basicConfig(
@@ -23,79 +27,88 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
-    logger.info("Starting up job queue service...")
+    logger.info("Starting up DiffRhythm service...")
+    
+    settings = get_settings()
     
     # Initialize database
-    init_db()
+    init_database()
     logger.info("Database initialized")
     
-    # Initialize job queue service
-    app.state.job_queue = JobQueueService()
-    logger.info("Job queue service initialized")
+    # Initialize DiffRhythm service
+    storage_dir = os.getenv("OUTPUT_DIR", "./output")
+    os.makedirs(storage_dir, exist_ok=True)
+    
+    service = DiffRhythmService(storage_dir=storage_dir, device="cpu")
+    set_diffrhythm_service(service)
+    logger.info(f"DiffRhythm service initialized (storage: {storage_dir})")
     
     yield
     
     # Shutdown
-    logger.info("Shutting down job queue service...")
+    logger.info("Shutting down DiffRhythm service...")
 
 
-# Create FastAPI app
-app = FastAPI(
-    title="Job Queue Service",
-    description="Background job management with queued/processing/completed/failed states, progress tracking, and optional Redis integration",
-    version="1.0.0",
-    lifespan=lifespan
-)
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include routers
-app.include_router(jobs.router)
-from .api import generation
-app.include_router(generation.router)
-
-
-@app.get("/")
-async def root():
-    """Root endpoint"""
-    return {
-        "service": "Job Queue Service",
-        "version": "1.0.0",
-        "status": "running"
-    }
-
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
+def create_app() -> FastAPI:
+    """Factory function to create and configure the FastAPI application"""
+    # Create FastAPI app
+    app = FastAPI(
+        title="DiffRhythm Generation API",
+        description="Direct prompt → track music generation with audio export",
+        version="1.0.0",
+        lifespan=lifespan
+    )
+    
+    # Configure CORS
+    cors_origins = os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
+    # Include routers
+    app.include_router(generation.router)
+    
+    # Mount static files for audio output
+    output_dir = os.getenv("OUTPUT_DIR", "./output")
+    os.makedirs(output_dir, exist_ok=True)
     try:
-        # Check database connection
-        from sqlalchemy import text
-        with app.state.job_queue.get_db_session() as db:
-            db.execute(text("SELECT 1"))
-        
-        # Get job stats
-        stats = app.state.job_queue.get_job_stats()
-        
-        return {
-            "status": "healthy",
-            "database": "connected",
-            "job_stats": {
-                "total_jobs": stats.get("total", 0),
-                "active_jobs": stats.get("active", 0)
-            },
-            "redis_enabled": app.state.job_queue.redis_enabled
-        }
+        app.mount("/output", StaticFiles(directory=output_dir, check_dir=True), name="output")
+        logger.info(f"Static files mounted at /output -> {output_dir}")
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        raise HTTPException(status_code=503, detail="Service unhealthy")
+        logger.warning(f"Could not mount static files: {e}")
+    
+    # Root endpoint
+    @app.get("/")
+    async def root():
+        """Root endpoint"""
+        return {
+            "service": "DiffRhythm Generation API",
+            "version": "1.0.0",
+            "status": "running"
+        }
+    
+    # Health check endpoint
+    @app.get("/health")
+    async def health_check():
+        """Health check endpoint"""
+        try:
+            return {
+                "status": "healthy",
+                "service": "DiffRhythm Generation API",
+            }
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
+            raise HTTPException(status_code=503, detail="Service unhealthy")
+    
+    return app
+
+
+# Create FastAPI app instance
+app = create_app()
 
 
 if __name__ == "__main__":
@@ -103,7 +116,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=int(os.getenv("PORT", "8000")),
         reload=True,
         log_level="info"
     )

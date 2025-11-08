@@ -2,6 +2,6 @@
 API endpoints
 """
 
-from . import jobs
+from . import jobs, generation
 
-__all__ = ["jobs"]
+__all__ = ["jobs", "generation"]

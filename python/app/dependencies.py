@@ -1,5 +1,5 @@
 """
-FastAPI dependencies for job queue service
+FastAPI dependencies for job queue service and DiffRhythm service
 """
 
 from typing import Generator, Optional
@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 
 from .core.database import get_db
 from .services.job_queue import JobQueueService
-from .models.job import Job
+from .services.diffrhythm import DiffRhythmService
+from .models.job import Job, JobStatus
 
 
 def get_job_queue_service(db: Session = Depends(get_db)) -> JobQueueService:
@@ -105,3 +106,30 @@ def get_completed_job_by_id(
         )
     
     return job
+
+
+# Module-level service instance (will be set on app startup)
+_diffrhythm_service: Optional[DiffRhythmService] = None
+
+
+def set_diffrhythm_service(service: DiffRhythmService) -> None:
+    """Set the DiffRhythm service instance (called on app startup)"""
+    global _diffrhythm_service
+    _diffrhythm_service = service
+
+
+def get_diffrhythm_service() -> DiffRhythmService:
+    """
+    Dependency to get DiffRhythm service instance.
+    
+    The service is initialized on application startup and stored globally.
+    
+    Returns:
+        DiffRhythmService instance
+        
+    Raises:
+        RuntimeError: If service is not available (not initialized on startup)
+    """
+    if _diffrhythm_service is None:
+        raise RuntimeError("DiffRhythm service not initialized on startup")
+    return _diffrhythm_service
