@@ -11,6 +11,9 @@ import sys
 import uuid
 import asyncio
 import logging
+import hashlib
+import time
+import traceback
 from pathlib import Path
 from typing import Dict, Optional, Any
 from datetime import datetime
@@ -37,6 +40,35 @@ from app.database import (
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Utility functions for logging
+def hash_prompt(prompt: str) -> str:
+    """Generate a hash of the prompt for logging (not full text)"""
+    return hashlib.md5(prompt.encode()).hexdigest()[:8]
+
+def get_device_info() -> str:
+    """Get device information (GPU/CPU)"""
+    if torch.cuda.is_available():
+        return f"cuda:{torch.cuda.get_device_name(0)}"
+    return "cpu"
+
+def log_operation(operation: str, job_id: str, status: str, details: Optional[Dict[str, Any]] = None) -> None:
+    """Log operation with structured information"""
+    timestamp = datetime.now().isoformat()
+    device = get_device_info()
+    log_data = {
+        "timestamp": timestamp,
+        "operation": operation,
+        "job_id": job_id,
+        "device": device,
+        "status": status,
+        **(details or {})
+    }
+    
+    if status == "error":
+        logger.error(f"{operation} - {job_id}: {log_data}")
+    else:
+        logger.info(f"{operation} - {job_id}: {log_data}")
 
 # Job status enum
 class JobStatus(str, Enum):
@@ -344,6 +376,16 @@ async def startup_event():
 
 async def process_generation_job(job_id: str, request_data: GenerationRequest):
     """Background task to process generation job"""
+    start_time = time.time()
+    prompt_hash = hash_prompt(request_data.prompt)
+    
+    log_operation("process_generation_job", job_id, "start", {
+        "prompt_hash": prompt_hash,
+        "duration_seconds": request_data.durationSeconds,
+        "language": request_data.language,
+        "genre": request_data.genre,
+        "mood": request_data.mood,
+    })
     
     def progress_callback(progress: int, message: str):
         """Update job progress"""
@@ -393,9 +435,15 @@ async def process_generation_job(job_id: str, request_data: GenerationRequest):
                 file_path_wav=wav_path,
                 file_path_mp3=mp3_path
             )
-            logger.info(f"Created track {track_id} for job {job_id}")
+            log_operation("track_creation", job_id, "success", {
+                "track_id": track_id,
+                "duration": duration,
+            })
         except Exception as e:
-            logger.error(f"Failed to save track for job {job_id}: {e}")
+            log_operation("track_creation", job_id, "error", {
+                "error": str(e),
+                "exception_type": type(e).__name__,
+            })
         finally:
             session.close()
         
@@ -411,10 +459,24 @@ async def process_generation_job(job_id: str, request_data: GenerationRequest):
             result_url=f"/result/{job_id}"
         )
         
-        logger.info(f"Job {job_id} completed successfully")
+        elapsed_time = time.time() - start_time
+        log_operation("process_generation_job", job_id, "success", {
+            "prompt_hash": prompt_hash,
+            "duration": elapsed_time,
+            "output_duration": duration,
+            "status": "completed",
+        })
         
     except Exception as e:
-        logger.error(f"Job {job_id} failed: {str(e)}")
+        elapsed_time = time.time() - start_time
+        log_operation("process_generation_job", job_id, "error", {
+            "prompt_hash": prompt_hash,
+            "duration": elapsed_time,
+            "error": str(e),
+            "exception_type": type(e).__name__,
+            "traceback": traceback.format_exc(),
+        })
+        
         job_store.update_job(
             job_id,
             status=JobStatus.FAILED,
