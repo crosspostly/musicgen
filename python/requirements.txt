@@ -7,10 +7,15 @@ alembic==1.12.1
 httpx==0.25.2
 requests==2.31.0
 torch>=2.2.0
-numpy==1.24.3
+torchaudio>=2.2.0
+numpy>=1.24.3
 soundfile==0.12.1
 pydub==0.25.1
 python-multipart==0.0.6
+diffusers>=0.24.0
+transformers>=4.36.0
+accelerate>=0.25.0
+scipy>=1.11.0
 pytest==7.4.3
 pytest-asyncio==0.21.1
 pytest-cov==4.1.0
