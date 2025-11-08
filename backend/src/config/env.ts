@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().transform(Number).default('3001'),
-  PY_DIFFRHYTHM_URL: z.string().url().default('http://localhost:8001'),
+  PY_DIFFRHYTHM_URL: z.string().url().default('http://localhost:8000'),
   STORAGE_DIR: z.string().default('./storage'),
   DATABASE_PATH: z.string().default('./storage/database.sqlite'),
   FFMPEG_PATH: z.string().default('ffmpeg'),
