@@ -27,7 +27,7 @@ class JobRepository:
         job_type: str,
         status: str = "pending",
         prompt: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        job_metadata: Optional[Dict[str, Any]] = None,
     ) -> Job:
         """Create a new job record."""
         job = Job(
@@ -35,7 +35,7 @@ class JobRepository:
             job_type=job_type,
             status=status,
             prompt=prompt,
-            metadata=metadata or {},
+            job_metadata=job_metadata or {},
         )
         self.session.add(job)
         self.session.commit()
@@ -59,7 +59,7 @@ class JobRepository:
         status: Optional[str] = None,
         progress: Optional[int] = None,
         error: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        job_metadata: Optional[Dict[str, Any]] = None,
         file_manifest: Optional[Dict[str, Any]] = None,
     ) -> Optional[Job]:
         """Update an existing job record."""
@@ -73,8 +73,8 @@ class JobRepository:
             job.progress = progress
         if error is not None:
             job.error = error
-        if metadata is not None:
-            job.metadata = metadata
+        if job_metadata is not None:
+            job.job_metadata = job_metadata
         if file_manifest is not None:
             job.file_manifest = file_manifest
         
@@ -104,7 +104,7 @@ class TrackRepository:
         track_id: str,
         job_id: str,
         duration: Optional[float] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        track_metadata: Optional[Dict[str, Any]] = None,
         file_path_wav: Optional[str] = None,
         file_path_mp3: Optional[str] = None,
     ) -> Track:
@@ -113,7 +113,7 @@ class TrackRepository:
             track_id=track_id,
             job_id=job_id,
             duration=duration,
-            metadata=metadata or {},
+            track_metadata=track_metadata or {},
             file_path_wav=file_path_wav,
             file_path_mp3=file_path_mp3,
         )
@@ -137,7 +137,7 @@ class TrackRepository:
         self,
         track_id: str,
         duration: Optional[float] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        track_metadata: Optional[Dict[str, Any]] = None,
         file_path_wav: Optional[str] = None,
         file_path_mp3: Optional[str] = None,
     ) -> Optional[Track]:
@@ -148,8 +148,8 @@ class TrackRepository:
         
         if duration is not None:
             track.duration = duration
-        if metadata is not None:
-            track.metadata = metadata
+        if track_metadata is not None:
+            track.track_metadata = track_metadata
         if file_path_wav is not None:
             track.file_path_wav = file_path_wav
         if file_path_mp3 is not None:

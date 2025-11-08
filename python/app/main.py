@@ -41,12 +41,28 @@ async def lifespan(app: FastAPI):
     
     service = DiffRhythmService(storage_dir=storage_dir, device="cpu")
     set_diffrhythm_service(service)
-    logger.info(f"DiffRhythm service initialized (storage: {storage_dir})")
+    
+    # Start model preload in background to keep app responsive
+    import asyncio
+    preload_task = asyncio.create_task(
+        service.initialize(preload=True),
+        name="model-preload"
+    )
+    
+    # Don't await here - let the app start serving while model loads
+    logger.info(f"DiffRhythm service initialized (storage: {storage_dir}), model preload started")
     
     yield
     
     # Shutdown
     logger.info("Shutting down DiffRhythm service...")
+    # Cancel preload task if still running
+    if not preload_task.done():
+        preload_task.cancel()
+        try:
+            await preload_task
+        except asyncio.CancelledError:
+            pass
 
 
 def create_app() -> FastAPI:
