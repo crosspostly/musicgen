@@ -18,6 +18,23 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
+      test: {
+        globals: true,
+        environment: 'jsdom',
+        include: ['screens/__tests__/**/*.test.{ts,tsx}', 'services/__tests__/**/*.test.{ts,tsx}'],
+        exclude: ['node_modules', 'dist', 'backend'],
+        coverage: {
+          provider: 'v8',
+          reporter: ['text', 'text-summary', 'lcov', 'html'],
+          reportsDirectory: './coverage/coverage-frontend',
+          exclude: [
+            'node_modules/',
+            'dist/',
+            'backend/',
+            'python/',
+          ],
+        },
+      },
     };
 });
