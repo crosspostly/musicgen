@@ -200,6 +200,8 @@ npm test
 ## 📖 Documentation
 
 - **[INSTALL.md](INSTALL.md)** - Complete installation and setup guide ⭐
+- **[docs/testing-checklist.md](docs/testing-checklist.md)** - Manual QA testing checklist for MVP
+- **[docs/E2E-TESTING.md](docs/E2E-TESTING.md)** - Automated end-to-end testing guide
 - **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Technical architecture and setup
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide
 
