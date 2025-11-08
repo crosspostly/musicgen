@@ -1,172 +1,125 @@
 """
-Example generation API endpoints using job queue service
+Generation API endpoints for direct prompt → track flow
 """
 
-from typing import Dict, Any
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+import os
+from typing import Optional
+from datetime import datetime
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from ..dependencies import get_job_queue_service
-from ..services.job_queue import JobQueueService
-from ..models.job import JobStatus
+from ..dependencies import get_diffrhythm_service
+from ..database import TrackRepository, get_session
 
-router = APIRouter(prefix="/api/generate", tags=["generation"])
+router = APIRouter(prefix="/api", tags=["generation"])
 
 
 class GenerationRequest(BaseModel):
     """Generation request model"""
-    prompt: str = Field(..., description="Text prompt for generation")
-    duration: int = Field(default=30, ge=10, le=300, description="Duration in seconds")
-    model: str = Field(default="diffrhythm", description="Model to use")
-    priority: int = Field(default=0, ge=0, le=100, description="Job priority")
+    prompt: str = Field(..., description="Text prompt for generation", min_length=1)
+    duration: int = Field(default=30, ge=5, le=300, description="Duration in seconds (5-300)")
 
 
 class GenerationResponse(BaseModel):
     """Generation response model"""
-    job_id: str
+    track_id: str
+    audio_url: str
+    duration: int
+    device: str
+    created_at: datetime
+
+
+class TrackMetadata(BaseModel):
+    """Track metadata response"""
+    track_id: str
+    prompt: str
+    duration: Optional[float]
     status: str
-    message: str
+    audio_url: Optional[str]
+    file_size: Optional[int]
+    created_at: datetime
 
 
-async def process_generation_job(job_id: str, queue_service: JobQueueService):
+@router.post("/generate", response_model=GenerationResponse, status_code=201)
+async def generate_track(
+    request: GenerationRequest,
+):
     """
-    Background task to process generation job
+    Generate a music track from a prompt.
+    
+    Returns immediately with track metadata and audio URL.
     
     Args:
-        job_id: Job identifier
-        queue_service: Job queue service
+        request: Generation request with prompt and optional duration
+        
+    Returns:
+        GenerationResponse with track_id, audio_url, and metadata (201 Created)
     """
     try:
-        # Get job details
-        job = queue_service.get_job(job_id)
-        if not job:
-            return
+        service = get_diffrhythm_service()
         
-        request_data = job.request_data
-        
-        # Update status to processing
-        queue_service.update_job(
-            job_id,
-            status=JobStatus.PROCESSING,
-            message="Starting generation..."
+        result = await service.generate(
+            prompt=request.prompt,
+            duration=request.duration
         )
         
-        # Simulate generation steps with progress updates
-        steps = [
-            (10, "Loading model..."),
-            (25, "Preparing prompt..."),
-            (50, "Generating audio..."),
-            (75, "Post-processing..."),
-            (90, "Exporting..."),
-        ]
-        
-        for progress, message in steps:
-            queue_service.update_progress(job_id, progress, message)
-            
-            # Simulate processing time
-            import asyncio
-            await asyncio.sleep(1)
-        
-        # Complete with mock result
-        result_data = {
-            "output_file": f"/output/{job_id}.mp3",
-            "duration": request_data.get("duration", 30),
-            "model": request_data.get("model", "diffrhythm"),
-            "prompt": request_data.get("prompt", ""),
-            "file_size": 1024000,  # Mock file size
-            "format": "mp3"
-        }
-        
-        queue_service.update_job(
-            job_id,
-            status=JobStatus.COMPLETED,
-            result_data=result_data,
-            message="Generation completed successfully"
+        return GenerationResponse(
+            track_id=result["track_id"],
+            audio_url=result["audio_url"],
+            duration=result["duration"],
+            device=result["device"],
+            created_at=result["created_at"]
         )
-        
     except Exception as e:
-        # Mark job as failed
-        queue_service.update_job(
-            job_id,
-            status=JobStatus.FAILED,
-            error=str(e),
-            message=f"Generation failed: {e}"
-        )
-
-
-@router.post("/{model}", response_model=GenerationResponse)
-async def start_generation(
-    model: str,
-    request: GenerationRequest,
-    background_tasks: BackgroundTasks,
-    queue_service: JobQueueService = Depends(get_job_queue_service)
-):
-    """
-    Start a generation job using specified model
-    
-    Args:
-        model: Model to use for generation
-        request: Generation request data
-        background_tasks: FastAPI BackgroundTasks
-        queue_service: Job queue service
-        
-    Returns:
-        Generation response with job ID
-    """
-    # Validate model
-    supported_models = ["diffrhythm", "yue", "bark", "lyria", "magnet"]
-    if model not in supported_models:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported model: {model}. Supported models: {supported_models}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Generation failed: {str(e)}"
         )
-    
-    # Prepare request data
-    request_data = {
-        "prompt": request.prompt,
-        "duration": request.duration,
-        "model": model
-    }
-    
-    # Enqueue job
-    job_id = queue_service.enqueue_job(
-        job_type=f"{model}_generation",
-        request_data=request_data,
-        priority=request.priority,
-        status=JobStatus.QUEUED
-    )
-    
-    # Start background processing
-    background_tasks.add_task(process_generation_job, job_id, queue_service)
-    
-    return GenerationResponse(
-        job_id=job_id,
-        status="queued",
-        message=f"Generation job started for model {model}"
-    )
 
 
-@router.post("", response_model=GenerationResponse)
-async def start_generation_default(
-    request: GenerationRequest,
-    background_tasks: BackgroundTasks,
-    queue_service: JobQueueService = Depends(get_job_queue_service)
-):
+@router.get("/track/{track_id}", response_model=TrackMetadata)
+async def get_track(track_id: str):
     """
-    Start a generation job using default model
+    Get track metadata by ID.
     
     Args:
-        request: Generation request data
-        background_tasks: FastAPI BackgroundTasks
-        queue_service: Job queue service
+        track_id: Track identifier
         
     Returns:
-        Generation response with job ID
+        TrackMetadata with prompt, duration, status, and audio URL
+        
+    Raises:
+        404: If track not found
     """
-    # Delegate to model-specific endpoint
-    return await start_generation(
-        request.model,
-        request,
-        background_tasks,
-        queue_service
-    )
+    session = get_session()
+    try:
+        repo = TrackRepository(session)
+        track = repo.get_by_id(track_id)
+        
+        if not track:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Track {track_id} not found"
+            )
+        
+        file_size = None
+        audio_url = None
+        
+        if track.file_path_mp3:
+            if os.path.exists(track.file_path_mp3):
+                file_size = os.path.getsize(track.file_path_mp3)
+            audio_url = f"/output/{os.path.basename(track.file_path_mp3)}"
+        
+        prompt = track.metadata.get("prompt", "") if track.metadata else ""
+        
+        return TrackMetadata(
+            track_id=track.track_id,
+            prompt=prompt,
+            duration=track.duration,
+            status="completed",
+            audio_url=audio_url,
+            file_size=file_size,
+            created_at=track.created_at
+        )
+    finally:
+        session.close()
