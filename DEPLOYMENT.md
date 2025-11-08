@@ -1,5 +1,9 @@
 # Deployment Guide - MusicGen Local
 
+> **📖 For local development and installation, see [INSTALL.md](INSTALL.md)**
+>
+> This guide covers production deployment only.
+
 Production deployment instructions for MusicGen Local MVP.
 
 ## 🐳 Docker Deployment (Recommended)
