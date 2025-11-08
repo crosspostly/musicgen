@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DatabaseService } from '../db/databaseService.js';
 import { logger } from '../config/logger.js';
 import type { Job, Track, TrackMetadata } from '../types/index.js';
+import * as crypto from 'crypto';
 
 export interface DiffRhythmJobRequest {
     prompt: string;
@@ -35,21 +36,84 @@ export class DiffRhythmJobService {
         this.pythonServiceUrl = process.env.PY_DIFFRHYTHM_URL || 'http://localhost:8000';
     }
 
+    /**
+     * Generate a hash of the prompt for logging (not full text)
+     */
+    private hashPrompt(prompt: string): string {
+        return crypto.createHash('md5').update(prompt).digest('hex').substring(0, 8);
+    }
+
+    /**
+     * Get device/environment info for logging
+     */
+    private getDeviceInfo(): string {
+        // In Node.js context, we report server environment
+        return `node-${process.platform}`;
+    }
+
+    /**
+     * Log operation with structured information
+     */
+    private logOperation(
+        operation: string,
+        jobId: string,
+        status: 'start' | 'success' | 'error',
+        details?: Record<string, any>
+    ): void {
+        const timestamp = new Date().toISOString();
+        const logData = {
+            timestamp,
+            operation,
+            jobId,
+            device: this.getDeviceInfo(),
+            status,
+            ...details,
+        };
+
+        if (status === 'error') {
+            logger.error(`${operation} - ${jobId}`, logData);
+        } else {
+            logger.info(`${operation} - ${jobId}`, logData);
+        }
+    }
+
     async createJob(requestData: DiffRhythmJobRequest): Promise<{ jobId: string; status: string; message: string }> {
         const jobId = uuidv4();
+        const startTime = Date.now();
         
         // Validate request data
         const { prompt, durationSeconds, language, genre, mood } = requestData;
+        const promptHash = this.hashPrompt(prompt);
+
+        this.logOperation('createJob', jobId, 'start', {
+            promptHash,
+            durationSeconds,
+            language,
+            genre,
+            mood,
+        });
         
         if (!prompt || prompt.trim().length === 0) {
+            this.logOperation('createJob', jobId, 'error', {
+                promptHash,
+                error: 'Prompt is required',
+            });
             throw new Error('Prompt is required');
         }
         
         if (durationSeconds < 10 || durationSeconds > 300) {
+            this.logOperation('createJob', jobId, 'error', {
+                promptHash,
+                error: 'Duration must be between 10 and 300 seconds',
+            });
             throw new Error('Duration must be between 10 and 300 seconds');
         }
         
         if (!['ru', 'en'].includes(language)) {
+            this.logOperation('createJob', jobId, 'error', {
+                promptHash,
+                error: 'Language must be either "ru" or "en"',
+            });
             throw new Error('Language must be either "ru" or "en"');
         }
 
@@ -77,17 +141,34 @@ export class DiffRhythmJobService {
                 this.startPolling(jobId, response.data.job_id);
             }
 
+            const duration = Date.now() - startTime;
+            this.logOperation('createJob', jobId, 'success', {
+                promptHash,
+                duration,
+                externalJobId: response.data.job_id,
+            });
+
             return {
                 jobId,
                 status: 'accepted',
                 message: 'DiffRhythm generation job created successfully'
             };
         } catch (error: any) {
+            const duration = Date.now() - startTime;
+            
             // Update job status to failed
             await this.db.updateJob(jobId, {
                 status: 'failed',
                 error: `Failed to submit to Python service: ${error.message}`
             });
+
+            this.logOperation('createJob', jobId, 'error', {
+                promptHash,
+                duration,
+                error: error.message,
+                stack: error.stack,
+            });
+
             throw error;
         }
     }
@@ -121,7 +202,11 @@ export class DiffRhythmJobService {
                     }
                 }
             } catch (error: any) {
-                logger.error(`Error polling job ${pythonJobId}:`, error.message);
+                this.logOperation('polling', localJobId, 'error', {
+                    pythonJobId,
+                    error: error.message,
+                    stack: error.stack,
+                });
                 
                 // Don't stop polling on network errors, but update job with warning
                 await this.db.updateJob(localJobId, {
@@ -134,6 +219,8 @@ export class DiffRhythmJobService {
     }
 
     private async handleJobCompletion(localJobId: string, pythonJobId: string): Promise<void> {
+        const startTime = Date.now();
+
         try {
             // Get full result from Python service
             const response = await axios.get(`${this.pythonServiceUrl}/result/${pythonJobId}`);
@@ -144,6 +231,8 @@ export class DiffRhythmJobService {
             const requestData = JSON.parse(
                 (await this.db.getJob(localJobId))!.request_data
             ) as DiffRhythmJobRequest;
+
+            const promptHash = this.hashPrompt(requestData.prompt);
 
             await this.db.createTrack({
                 id: trackId,
@@ -170,13 +259,26 @@ export class DiffRhythmJobService {
                 result_data: JSON.stringify(result)
             });
 
-            logger.info(`Job ${localJobId} completed successfully, track created: ${trackId}`);
+            const duration = Date.now() - startTime;
+            this.logOperation('handleJobCompletion', localJobId, 'success', {
+                promptHash,
+                trackId,
+                duration,
+                pythonJobId,
+            });
         } catch (error: any) {
-            logger.error(`Error handling job completion for ${localJobId}:`, error.message);
+            const duration = Date.now() - startTime;
             
             await this.db.updateJob(localJobId, {
                 status: 'failed',
                 error: `Failed to process completion: ${error.message}`
+            });
+
+            this.logOperation('handleJobCompletion', localJobId, 'error', {
+                pythonJobId,
+                duration,
+                error: error.message,
+                stack: error.stack,
             });
         }
     }

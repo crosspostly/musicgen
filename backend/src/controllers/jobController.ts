@@ -72,11 +72,34 @@ export class JobController {
         message: 'DiffRhythm job created successfully',
         job: result,
       });
-    } catch (error) {
-      logger.error('Failed to create DiffRhythm job:', error);
-      res.status(500).json({
-        error: 'Internal Server Error',
+    } catch (error: any) {
+      logger.error('Failed to create DiffRhythm job:', {
+        error: error.message,
+        stack: error.stack,
+      });
+
+      // Map specific error types to user-friendly messages
+      let statusCode = 500;
+      let detail = 'Failed to create generation job. Please try again.';
+
+      if (error.message && error.message.includes('Prompt is required')) {
+        statusCode = 400;
+        detail = 'Lyrics/prompt is required.';
+      } else if (error.message && error.message.includes('Duration must be between')) {
+        statusCode = 400;
+        detail = 'Duration must be between 10 and 300 seconds.';
+      } else if (error.message && error.message.includes('Language must be')) {
+        statusCode = 400;
+        detail = 'Language must be either "ru" or "en".';
+      } else if (error.message && error.message.includes('Failed to submit to Python service')) {
+        statusCode = 503;
+        detail = 'Music generation service is currently unavailable. Please try again later.';
+      }
+
+      res.status(statusCode).json({
+        error: 'Generation Error',
         message: 'Failed to create job',
+        detail,
       });
     }
   }

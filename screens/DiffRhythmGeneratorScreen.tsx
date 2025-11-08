@@ -3,10 +3,27 @@ import React, { useState } from 'react';
 import { Button, Card } from '../components/common';
 import { ArrowLeftIcon } from '../components/icons';
 import { GeneratedTrack, GenerationModel } from '../types';
+import { apiClient, type ErrorType } from '../services/api';
 
 interface GeneratorScreenProps {
   onBack: () => void;
   onGenerationComplete: (track: GeneratedTrack) => void;
+}
+
+/**
+ * Map error types to user-friendly messages
+ */
+function getErrorMessage(errorType: ErrorType, detail?: string): string {
+  switch (errorType) {
+    case 'timeout':
+      return 'The generation took too long (over 2 minutes). Please try with shorter lyrics or try again.';
+    case 'network_error':
+      return 'Cannot reach the server. Please check your internet connection and try again.';
+    case 'http_error':
+      return detail || 'The server encountered an error. Please try again in a moment.';
+    default:
+      return detail || 'An unexpected error occurred. Please try again.';
+  }
 }
 
 const DiffRhythmGeneratorScreen: React.FC<GeneratorScreenProps> = ({ onBack, onGenerationComplete }) => {
@@ -21,37 +38,39 @@ const DiffRhythmGeneratorScreen: React.FC<GeneratorScreenProps> = ({ onBack, onG
         setIsGenerating(true);
         setError(null);
         try {
-            const response = await fetch('/api/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: GenerationModel.DIFFRHYTHM,
-                    lyrics,
-                    genre,
-                    mood,
-                    gender,
-                }),
+            const result = await apiClient.post('/api/generate', {
+                model: GenerationModel.DIFFRHYTHM,
+                prompt: lyrics,
+                genre,
+                mood,
+                gender,
             });
 
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({ message: 'Ошибка генерации. Сервер не отвечает.' }));
-                throw new Error(errData.message || 'Произошла неизвестная ошибка');
+            if (result.error) {
+                const errorMessage = getErrorMessage(result.error.type, result.error.detail);
+                setError(errorMessage);
+                return;
             }
 
-            const result = await response.json();
+            if (!result.data) {
+                setError('No response from server. Please try again.');
+                return;
+            }
 
+            const data = result.data as { audioUrl?: string; duration?: number };
             const newTrack: GeneratedTrack = {
                 id: new Date().toISOString(),
                 name: lyrics.substring(0, 30).split('\n')[0] + '...',
                 model: GenerationModel.DIFFRHYTHM,
-                audioUrl: result.audioUrl,
-                duration: result.duration,
+                audioUrl: data.audioUrl || '',
+                duration: data.duration || 0,
                 createdAt: new Date(),
             };
             onGenerationComplete(newTrack);
 
         } catch (e: any) {
-            setError(e.message);
+            setError('An unexpected error occurred. Please try again.');
+            console.error('Unexpected error in generation:', e);
         } finally {
             setIsGenerating(false);
         }
@@ -100,7 +119,7 @@ const DiffRhythmGeneratorScreen: React.FC<GeneratorScreenProps> = ({ onBack, onG
             <Button onClick={handleGenerate} disabled={isGenerating}>
                 {isGenerating ? 'Генерация...' : '🎬 Генерировать песню'}
             </Button>
-            {isGenerating && <p className="mt-2 text-sm text-indigo-400">Ожидаем ответ от сервера... (~10-15 сек)</p>}
+            {isGenerating && <p className="mt-2 text-sm text-indigo-400">Ожидаем ответ от сервера... (до 120 сек)</p>}
             {error && <p className="mt-4 text-red-400 text-center">{error}</p>}
           </div>
       </Card>
