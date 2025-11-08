@@ -110,7 +110,7 @@ async def get_track(track_id: str):
                 file_size = os.path.getsize(track.file_path_mp3)
             audio_url = f"/output/{os.path.basename(track.file_path_mp3)}"
         
-        prompt = track.metadata.get("prompt", "") if track.metadata else ""
+        prompt = track.track_metadata.get("prompt", "") if track.track_metadata else ""
         
         return TrackMetadata(
             track_id=track.track_id,

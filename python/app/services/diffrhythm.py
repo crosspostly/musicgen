@@ -91,6 +91,48 @@ class DiffRhythmService:
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.device = device
         self.generator = DiffRhythmGenerator(device=device)
+        self._initialized = False
+        self._initialization_lock = asyncio.Lock()
+
+    async def initialize(self, preload: bool = False) -> None:
+        """
+        Initialize the DiffRhythm service
+        
+        Args:
+            preload: Whether to preload the model during initialization
+        """
+        if self._initialized:
+            return
+
+        async with self._initialization_lock:
+            if self._initialized:
+                return
+            
+            logger.info(f"Initializing DiffRhythm service (device: {self.device}, preload: {preload})")
+            
+            if preload:
+                await self.warm_start()
+            
+            self._initialized = True
+            logger.info("DiffRhythm service initialization completed")
+
+    async def warm_start(self) -> None:
+        """
+        Warm start the model by loading it without generating audio
+        """
+        start_time = asyncio.get_event_loop().time()
+        
+        logger.info(f"Starting model preload on {self.device}...")
+        
+        try:
+            await self.generator.load_model()
+            
+            elapsed_time = asyncio.get_event_loop().time() - start_time
+            logger.info(f"Model preload completed successfully in {elapsed_time:.2f} seconds")
+            
+        except Exception as e:
+            logger.error(f"Model preload failed: {str(e)}", exc_info=True)
+            raise
 
     async def generate(
         self, prompt: str, duration: int = 30
@@ -105,6 +147,9 @@ class DiffRhythmService:
         Returns:
             Dictionary with track_id, audio_url, duration, device, created_at
         """
+        # Ensure service is initialized before generation
+        await self.initialize(preload=False)
+        
         try:
             job_id = str(uuid.uuid4())
             track_id = str(uuid.uuid4())
@@ -118,7 +163,7 @@ class DiffRhythmService:
                     job_type="diffrhythm",
                     status="pending",
                     prompt=prompt,
-                    metadata={"duration": duration},
+                    job_metadata={"duration": duration},
                 )
             finally:
                 session.close()
@@ -146,7 +191,7 @@ class DiffRhythmService:
                     track_id=track_id,
                     job_id=job_id,
                     duration=actual_duration,
-                    metadata={
+                    track_metadata={
                         "prompt": prompt,
                         "language": "en",
                     },

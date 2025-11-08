@@ -14,6 +14,7 @@ import os
 import json
 from datetime import datetime
 import asyncio
+import numpy as np
 
 
 @pytest.fixture
@@ -151,7 +152,7 @@ def test_get_track_found(client):
             track_id="test-track-uuid",
             job_id="job-uuid",
             duration=30.5,
-            metadata={"prompt": "beautiful ambient music", "language": "en"},
+            track_metadata={"prompt": "beautiful ambient music", "language": "en"},
             file_path_mp3="/output/test-track-uuid.mp3",
             created_at=datetime.utcnow()
         )
@@ -178,7 +179,7 @@ def test_get_track_with_audio_url(client):
             track_id="audio-track",
             job_id="job-uuid",
             duration=45.0,
-            metadata={"prompt": "jazz music"},
+            track_metadata={"prompt": "jazz music"},
             file_path_mp3="/tmp/output/audio-track.mp3",
             created_at=datetime.utcnow()
         )
@@ -203,7 +204,7 @@ def test_get_track_without_file(client):
             track_id="missing-file-track",
             job_id="job-uuid",
             duration=30.0,
-            metadata={"prompt": "music"},
+            track_metadata={"prompt": "music"},
             file_path_mp3=None,
             created_at=datetime.utcnow()
         )
@@ -294,3 +295,181 @@ def test_cors_headers_present(client):
     response = client.get("/", headers={"Origin": "http://localhost:3000"})
     
     assert response.status_code == 200
+
+
+def test_service_initialize_preload():
+    """Test DiffRhythmService.initialize with preload=True"""
+    from app.services.diffrhythm import DiffRhythmService
+    
+    async def test_preload():
+        service = DiffRhythmService()
+        
+        # Mock the generator's load_model method
+        original_load_model = service.generator.load_model
+        load_model_called = False
+        
+        async def mock_load_model():
+            nonlocal load_model_called
+            load_model_called = True
+        
+        service.generator.load_model = mock_load_model
+        
+        # Test initialize with preload=True
+        await service.initialize(preload=True)
+        
+        # Verify load_model was called
+        assert load_model_called
+        assert service._initialized
+        
+        # Test subsequent calls don't load model again
+        load_model_called = False
+        await service.initialize(preload=True)
+        assert not load_model_called  # Should not be called again
+        
+        # Restore original method
+        service.generator.load_model = original_load_model
+    
+    # Run the async test
+    asyncio.run(test_preload())
+
+
+def test_service_initialize_no_preload():
+    """Test DiffRhythmService.initialize with preload=False"""
+    from app.services.diffrhythm import DiffRhythmService
+    
+    async def test_no_preload():
+        service = DiffRhythmService()
+        
+        # Mock the generator's load_model method
+        original_load_model = service.generator.load_model
+        load_model_called = False
+        
+        async def mock_load_model():
+            nonlocal load_model_called
+            load_model_called = True
+        
+        service.generator.load_model = mock_load_model
+        
+        # Test initialize with preload=False
+        await service.initialize(preload=False)
+        
+        # Verify load_model was NOT called
+        assert not load_model_called
+        assert service._initialized
+        
+        # Restore original method
+        service.generator.load_model = original_load_model
+    
+    # Run the async test
+    asyncio.run(test_no_preload())
+
+
+def test_service_warm_start():
+    """Test DiffRhythmService.warm_start method"""
+    from app.services.diffrhythm import DiffRhythmService
+    
+    async def test_warm_start():
+        service = DiffRhythmService()
+        
+        # Mock the generator's load_model method
+        original_load_model = service.generator.load_model
+        load_model_called = False
+        
+        async def mock_load_model():
+            nonlocal load_model_called
+            load_model_called = True
+        
+        service.generator.load_model = mock_load_model
+        
+        # Test warm_start
+        await service.warm_start()
+        
+        # Verify load_model was called
+        assert load_model_called
+        
+        # Restore original method
+        service.generator.load_model = original_load_model
+    
+    # Run the async test
+    asyncio.run(test_warm_start())
+
+
+def test_service_concurrent_initialization():
+    """Test that concurrent initialization calls are handled correctly"""
+    from app.services.diffrhythm import DiffRhythmService
+    
+    async def test_concurrent():
+        service = DiffRhythmService()
+        
+        # Mock the generator's load_model method
+        original_load_model = service.generator.load_model
+        load_model_call_count = 0
+        
+        async def mock_load_model():
+            nonlocal load_model_call_count
+            load_model_call_count += 1
+            await asyncio.sleep(0.1)  # Simulate loading time
+        
+        service.generator.load_model = mock_load_model
+        
+        # Start multiple concurrent initializations
+        tasks = [
+            service.initialize(preload=True),
+            service.initialize(preload=True),
+            service.initialize(preload=True),
+        ]
+        
+        await asyncio.gather(*tasks)
+        
+        # Verify load_model was called only once
+        assert load_model_call_count == 1
+        assert service._initialized
+        
+        # Restore original method
+        service.generator.load_model = original_load_model
+    
+    # Run the async test
+    asyncio.run(test_concurrent())
+
+
+def test_generate_calls_initialize():
+    """Test that generate method calls initialize"""
+    from app.services.diffrhythm import DiffRhythmService
+    
+    async def test_generate_init():
+        service = DiffRhythmService()
+        
+        # Mock initialize method
+        initialize_called = False
+        
+        async def mock_initialize(preload: bool = False):
+            nonlocal initialize_called
+            initialize_called = True
+        
+        service.initialize = mock_initialize
+        
+        # Mock the rest of the generation process
+        original_generate_audio = service.generator.generate_audio
+        service.generator.generate_audio = AsyncMock(return_value=np.array([0.1, 0.2, 0.3]))
+        
+        # Mock database operations
+        with patch('app.services.diffrhythm.get_session') as mock_session:
+            mock_session.return_value.close = MagicMock()
+            
+            with patch('app.services.diffrhythm.sf.write'):
+                with patch('app.services.diffrhythm.AudioSegment.from_wav') as mock_audio:
+                    mock_audio.return_value.export = MagicMock()
+                    
+                    try:
+                        await service.generate("test prompt", 30)
+                    except Exception:
+                        pass  # We're only testing that initialize is called
+        
+        # Verify initialize was called
+        assert initialize_called
+        
+        # Restore original method
+        service.generator.generate_audio = original_generate_audio
+    
+    # Run the async test
+    asyncio.run(test_generate_init())

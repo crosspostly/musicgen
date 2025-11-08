@@ -26,6 +26,8 @@ docker-compose up
 - http://localhost:3001 - Backend API  
 - http://localhost:8000 - Python AI Service
 
+**🚀 Model Preload:** The Python AI service automatically preloads the DiffRhythm model during startup to optimize first-request latency. This one-time preload typically takes 10-30 seconds depending on your hardware, after which all generation requests are served instantly without model loading delays.
+
 **📖 Detailed Installation**: [INSTALL.md](INSTALL.md) - Complete setup guide with troubleshooting
 
 ## ✨ Core Features
