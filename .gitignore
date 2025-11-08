@@ -50,12 +50,16 @@ python/coverage.xml
 *.lcov
 
 # AI Models (large files)
-models/cache/
+models/cache/*
+!models/cache/.gitkeep
+python/models/cache/*
+!python/models/cache/.gitkeep
 models/*.bin
 models/*.safetensors
 
 # Output files
-output/
+output/*
+!output/.gitkeep
 temp/
 *.mp3
 *.wav

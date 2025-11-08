@@ -33,7 +33,8 @@ echo "📁 Creating directories..."
 mkdir -p output
 mkdir -p data
 mkdir -p temp
-mkdir -p models/cache
+mkdir -p python/models/cache
+mkdir -p storage
 
 # Install dependencies if needed
 echo "📦 Installing dependencies..."
@@ -58,7 +59,7 @@ source venv/bin/activate
 
 if [ ! -f "venv/pyvenv.cfg" ] || ! pip list | grep -q "fastapi"; then
     echo "Installing Python dependencies..."
-    pip install -r requirements.txt
+    pip install -r python/requirements.txt
 fi
 
 # Copy environment file if it doesn't exist
@@ -85,7 +86,7 @@ trap cleanup SIGINT SIGTERM
 # Start Python DiffRhythm service
 echo "🐍 Starting DiffRhythm Python service (port 8000)..."
 cd python
-python services/diffrhythm_service.py &
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
 PYTHON_PID=$!
 cd ..
 

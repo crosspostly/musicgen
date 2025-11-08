@@ -9,15 +9,15 @@
 
 ## 🚀 Quick Start
 
-For complete installation instructions, see **[INSTALL.md](INSTALL.md)**.
+### For Developers: Local MVP Setup ⭐
+
+**See [docs/MVP_SETUP.md](docs/MVP_SETUP.md) for complete step-by-step instructions**
 
 ```bash
-# Quick setup with Docker (recommended)
+# Quick setup (5-10 minutes)
 git clone https://github.com/crosspostly/musicgen
 cd musicgen
-docker-compose up
-
-# Or use the development script
+cp .env.example .env
 ./start-dev.sh
 ```
 
@@ -28,7 +28,14 @@ docker-compose up
 
 **🚀 Model Preload:** The Python AI service automatically preloads the DiffRhythm model during startup to optimize first-request latency. This one-time preload typically takes 10-30 seconds depending on your hardware, after which all generation requests are served instantly without model loading delays.
 
-**📖 Detailed Installation**: [INSTALL.md](INSTALL.md) - Complete setup guide with troubleshooting
+### For Production Deployment
+
+See **[INSTALL.md](INSTALL.md)** - Complete installation guide with Docker and troubleshooting
+
+```bash
+# Docker deployment
+docker-compose up
+```
 
 ## ✨ Core Features
 
@@ -87,20 +94,23 @@ React SPA (Vite) ↔ Python FastAPI ↔ DiffRhythm AI
 
 ### Development Setup
 
-📖 **For complete development setup instructions, see [INSTALL.md](INSTALL.md)**
+📖 **For complete development setup instructions, see [docs/MVP_SETUP.md](docs/MVP_SETUP.md)** ⭐
 
 **Quick Development Commands:**
 ```bash
 # Install all dependencies
 npm run install:all
 
-# Start all services
+# Start all services (recommended)
 ./start-dev.sh
 
 # Or start individually
-npm run dev:frontend  # React dev server (port 3000)
+npm run dev:frontend  # React dev server (port 3000/5173)
 npm run dev:backend   # Node.js backend (port 3001)
-cd python && python services/diffrhythm_service.py  # Python AI service (port 8000)
+
+# Python AI service - run from python/ directory:
+source venv/bin/activate
+cd python && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### Available Scripts
@@ -199,10 +209,12 @@ npm test
 
 ## 📖 Documentation
 
-- **[INSTALL.md](INSTALL.md)** - Complete installation and setup guide ⭐
-- **[docs/testing-checklist.md](docs/testing-checklist.md)** - Manual QA testing checklist for MVP
+- **[docs/MVP_SETUP.md](docs/MVP_SETUP.md)** - Step-by-step developer setup guide ⭐
+- **[INSTALL.md](INSTALL.md)** - Complete installation and production guide
 - **[docs/E2E-TESTING.md](docs/E2E-TESTING.md)** - Automated end-to-end testing guide
-- **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Technical architecture and setup
+- **[docs/testing-checklist.md](docs/testing-checklist.md)** - Manual QA testing checklist for MVP
+- **[docs/CI-CD.md](docs/CI-CD.md)** - CI/CD pipeline documentation
+- **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Technical architecture and design
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide
 
 ## 🔒 Security
