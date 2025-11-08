@@ -13,6 +13,10 @@ backend/dist/
 storage/
 test-storage/
 
+# E2E Test artifacts
+tmp/e2e/
+tests/e2e/artifacts/*.log
+
 # Database
 *.sqlite
 *.sqlite3

@@ -1,0 +1,15 @@
+# E2E Test Artifacts
+artifacts/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Test outputs
+*.wav
+*.mp3
+*.db
+*.sqlite

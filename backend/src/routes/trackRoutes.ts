@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { TrackController } from '../controllers/trackController.js';
-import { validateParams, paginationSchema } from '../middleware/validation.js';
-import { trackIdSchema } from '../types/schemas.js';
+import { validateParams } from '../middleware/validation.js';
+import { trackIdSchema, paginationSchema } from '../types/schemas.js';
 
 export function createTrackRoutes(trackController: TrackController): Router {
   const router = Router();
