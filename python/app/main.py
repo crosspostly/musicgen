@@ -75,11 +75,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan
     )
     
-    # Configure CORS
-    cors_origins = os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+# Configure CORS (разрешить все источники для локальной разработки)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=cors_origins,
+        allow_origins=["*"],  # Разрешить все источники
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

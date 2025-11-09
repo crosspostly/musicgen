@@ -1,3 +1,5 @@
+const API_URL = 'http://localhost:8000';
+
 // Fix: Create a placeholder screen component to resolve compilation errors.
 import React, { useState } from 'react';
 import { Button, Card } from '../components/common';
@@ -37,40 +39,51 @@ const DiffRhythmGeneratorScreen: React.FC<GeneratorScreenProps> = ({ onBack, onG
     const handleGenerate = async () => {
         setIsGenerating(true);
         setError(null);
+        
         try {
-            const result = await apiClient.post('/api/generate', {
-                model: GenerationModel.DIFFRHYTHM,
-                prompt: lyrics,
-                genre,
-                mood,
-                gender,
+            // ИСПРАВЛЕНО: Прямой вызов API вместо apiClient
+            console.log('Generating music...', { lyrics, genre, mood, gender });
+
+            const response = await fetch(`${API_URL}/api/generate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    prompt: lyrics,
+                    duration: 30,
+                    // Опционально: можно добавить genre, mood, gender если backend поддерживает
+                }),
             });
 
-            if (result.error) {
-                const errorMessage = getErrorMessage(result.error.type, result.error.detail);
-                setError(errorMessage);
-                return;
+            console.log('Response status:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API error ${response.status}: ${errorText}`);
             }
 
-            if (!result.data) {
-                setError('No response from server. Please try again.');
-                return;
-            }
+            const data = await response.json();
+            console.log('Generated track:', data);
 
-            const data = result.data as { audioUrl?: string; duration?: number };
+            // ИСПРАВЛЕНО: Используем правильный формат ответа от backend
             const newTrack: GeneratedTrack = {
-                id: new Date().toISOString(),
+                id: data.track_id || new Date().toISOString(),
                 name: lyrics.substring(0, 30).split('\n')[0] + '...',
                 model: GenerationModel.DIFFRHYTHM,
-                audioUrl: data.audioUrl || '',
+                audioUrl: `${API_URL}${data.audio_url}`, // ИСПРАВЛЕНО: добавлен полный URL
                 duration: data.duration || 0,
                 createdAt: new Date(),
             };
+            
+            console.log('Track created:', newTrack);
             onGenerationComplete(newTrack);
 
         } catch (e: any) {
-            setError('An unexpected error occurred. Please try again.');
-            console.error('Unexpected error in generation:', e);
+            const errorMessage = e?.message || 'An unexpected error occurred. Please try again.';
+            setError(errorMessage);
+            console.error('Generation error:', e);
+            alert(`Ошибка генерации: ${errorMessage}`);
         } finally {
             setIsGenerating(false);
         }
@@ -91,25 +104,41 @@ const DiffRhythmGeneratorScreen: React.FC<GeneratorScreenProps> = ({ onBack, onG
                   onChange={e => setLyrics(e.target.value)}
                   className="w-full h-48 bg-gray-700 border border-gray-600 rounded-md shadow-sm p-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm"
                   placeholder="Verse 1: ..."
+                  disabled={isGenerating}
               />
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                   <label className="block text-sm font-medium text-gray-300">Жанр</label>
-                  <select value={genre} onChange={e => setGenre(e.target.value)} className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                  <select 
+                      value={genre} 
+                      onChange={e => setGenre(e.target.value)} 
+                      className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      disabled={isGenerating}
+                  >
                       <option>Pop</option><option>Rock</option><option>Rap</option><option>Electronic</option><option>Jazz</option>
                   </select>
               </div>
               <div>
                   <label className="block text-sm font-medium text-gray-300">Настроение</label>
-                  <select value={mood} onChange={e => setMood(e.target.value)} className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                  <select 
+                      value={mood} 
+                      onChange={e => setMood(e.target.value)} 
+                      className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      disabled={isGenerating}
+                  >
                       <option>Happy</option><option>Sad</option><option>Energetic</option><option>Calm</option><option>Romantic</option>
                   </select>
               </div>
               <div>
                   <label className="block text-sm font-medium text-gray-300">Пол вокалиста</label>
-                  <select value={gender} onChange={e => setGender(e.target.value)} className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                  <select 
+                      value={gender} 
+                      onChange={e => setGender(e.target.value)} 
+                      className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      disabled={isGenerating}
+                  >
                       <option>Male</option><option>Female</option>
                   </select>
               </div>
@@ -117,10 +146,19 @@ const DiffRhythmGeneratorScreen: React.FC<GeneratorScreenProps> = ({ onBack, onG
 
           <div className="mt-6 flex flex-col items-center">
             <Button onClick={handleGenerate} disabled={isGenerating}>
-                {isGenerating ? 'Генерация...' : '🎬 Генерировать песню'}
+                {isGenerating ? 'Генерация... (может занять до 10 минут)' : '🎬 Генерировать песню'}
             </Button>
-            {isGenerating && <p className="mt-2 text-sm text-indigo-400">Ожидаем ответ от сервера... (до 120 сек)</p>}
-            {error && <p className="mt-4 text-red-400 text-center">{error}</p>}
+            {isGenerating && (
+                <div className="mt-4 text-center">
+                    <p className="text-sm text-indigo-400">⏳ Идёт генерация музыки...</p>
+                    <p className="text-xs text-gray-400 mt-2">На CPU это может занять 5-10 минут. Пожалуйста, подождите.</p>
+                </div>
+            )}
+            {error && (
+                <div className="mt-4 p-4 bg-red-900/20 border border-red-500 rounded-md">
+                    <p className="text-red-400 text-center">{error}</p>
+                </div>
+            )}
           </div>
       </Card>
     </div>
