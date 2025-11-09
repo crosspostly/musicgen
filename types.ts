@@ -1,22 +1,33 @@
 // Fix: Create and export enums and interfaces to be used across the application.
 export enum GenerationModel {
-  DIFFRHYTHM = 'DiffRhythm',
-  YUE = 'YuE',
+  MUSICGEN = 'MusicGen',
   BARK = 'Bark',
-  LYRIA = 'Lyria',
-  MAGNET = 'MAGNeT',
 }
 
 export enum Screen {
   MODEL_SELECTION = 'ModelSelection',
-  DIFFRHYTHM_GENERATOR = 'DiffRhythmGenerator',
-  YUE_GENERATOR = 'YueGenerator',
+  MUSICGEN_GENERATOR = 'MusicGenGenerator',
   BARK_GENERATOR = 'BarkGenerator',
-  LYRIA_GENERATOR = 'LyriaGenerator',
-  MAGNET_GENERATOR = 'MagnetGenerator',
   METADATA_EDITOR = 'MetadataEditor',
   EXPORT = 'Export',
   FREESTYLE = 'Freestyle',
+}
+
+export interface MusicGenParams {
+  prompt: string;
+  duration: number;              // 5-60 сек (default: 30)
+  guidance_scale?: number;       // 1.0-15.0 (default: 3.0)
+  temperature?: number;          // 0.1-2.0 (default: 1.0)
+  top_k?: number;                // 50-500 (default: 250)
+  top_p?: number;                // 0.0-1.0 (default: 0.9)
+}
+
+export interface BarkParams {
+  text: string;                  // макс ~150 символов
+  voice_preset: string;          // "v2/[lang]_speaker_[0-9]"
+  language?: string;             // "ru", "en", "de", "es", etc
+  text_temp?: number;            // 0.7 (default)
+  waveform_temp?: number;        // 0.7 (default)
 }
 
 export interface ExportFile {

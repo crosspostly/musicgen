@@ -5,51 +5,110 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2025-11-09] - MusicGen/Transformers Migration
+## [2.0.0] - 2024-01-XX
 
-### Added
-- **Transformers-based MusicGen implementation** using `MusicgenForConditionalGeneration` from transformers library
-- **Cross-platform support** - Works on Windows, macOS, and Linux without system dependencies
-- **Multiple model sizes** - Small (300MB), Medium (1.5GB), and Large (3GB) models
-- **Simplified dependencies** - Only requires transformers, torch, and basic audio libraries
-- **AutoProcessor integration** for tokenization and audio processing
-- **Device selection** - CPU and CUDA support with automatic configuration
-- **Model preload functionality** for faster first-request latency
-- **Structured logging** for model loading and generation process
-- **Enhanced error handling** with detailed logging and graceful failures
+### BREAKING CHANGES
+- Removed all fake models (DiffRhythm, YuE, Lyria, MAGNeT)
+- Renamed `DIFFRHYTHM` model to `MUSICGEN` in frontend types
+- Updated API endpoints to use MusicGen-specific parameters
+- Changed generation API request/response format
 
-### Changed
-- **Replaced audiocraft with transformers** - Complete migration from audiocraft to transformers library
-- **Updated audio export** - Now uses soundfile for WAV and pydub for MP3 conversion
-- **Sample rate standardized** - Fixed at 32kHz for all MusicGen models
-- **Service initialization** - Added model size parameter and preload capability
-- **Job type updated** - Changed from "diffrhythm" to "musicgen" in database records
-- **Metadata enhancement** - Added model_size and sample_rate to track metadata
+### ADDED
+- Real MusicGen model integration (facebook/musicgen-small)
+- Full parameter support for MusicGen:
+  - `guidance_scale` (1.0-15.0, default: 3.0)
+  - `temperature` (0.1-2.0, default: 1.0)
+  - `top_k` (50-500, default: 250)
+  - `top_p` (0.0-1.0, default: 0.9)
+- Bark model preparation with Russian voice presets
+- New TypeScript interfaces:
+  - `MusicGenParams` for MusicGen parameters
+  - `BarkParams` for Bark parameters
+- Enhanced UI with parameter sliders and real-time validation
+- Russian language support for Bark voices (v2/ru_speaker_0-7)
+- Improved model selection screen with accurate information
 
-### Removed
-- **audiocraft dependency** - No longer required for music generation
-- **av dependency** - Removed audio/video processing library
-- **ffmpeg requirement** - No system dependency needed for audio processing
-- **librosa dependency** - Replaced with soundfile for audio operations
-- **diffusers dependency** - Not needed for MusicGen implementation
-- **accelerate dependency** - Simplified device handling without accelerate
+### CHANGED
+- Renamed `DiffRhythmService` to `MusicGenService`
+- Updated Python backend to use transformers instead of diffusers
+- Migrated from DiffRhythm (ASLP-lab) to MusicGen (Meta) model
+- Updated frontend to show only real models (MusicGen + Bark)
+- Improved generation time estimates based on actual model performance
+- Enhanced error handling and user feedback
 
-### Fixed
-- **Windows compatibility** - Resolved installation issues on Windows by removing system dependencies
-- **Cross-platform audio processing** - Now works consistently across all operating systems
-- **Simplified installation** - Reduced dependency conflicts and installation complexity
-- **Memory management** - Better handling of model loading and unloading
-- **Device detection** - Improved CPU/CUDA detection and configuration
+### REMOVED
+- `DiffRhythmGeneratorScreen.tsx` - replaced with `MusicGenGeneratorScreen.tsx`
+- `YueGeneratorScreen.tsx` - fake model removed
+- `LyriaGeneratorScreen.tsx` - fake model removed
+- `MagnetGeneratorScreen.tsx` - fake model removed
+- All fake model references from types and enums
+- Legacy DiffRhythm service and API endpoints
 
-### Technical Details
-- **Model loading**: Uses `MusicgenForConditionalGeneration.from_pretrained()`
-- **Tokenization**: Integrated `AutoProcessor` for text-to-audio conversion
-- **Generation parameters**: Configurable guidance_scale, temperature, and max_new_tokens
-- **Audio format**: 32kHz sample rate, mono output, WAV/MP3 export
-- **Model sizes**: facebook/musicgen-small, facebook/musicgen-medium, facebook/musicgen-large
+### FIXED
+- Corrected model size information (300MB for MusicGen)
+- Fixed parameter validation ranges
+- Improved audio export functionality
+- Enhanced CORS configuration for local development
+
+### DEPRECATED
+- Old generation API format (still supported for backward compatibility)
+- Fake model endpoints (will be removed in future versions)
+
+## [1.0.0] - 2024-01-XX
+
+### ADDED
+- Initial release with fake models
+- Basic generation API
+- Audio export functionality
+- Database persistence
+- Frontend UI with model selection
 
 ---
 
-## Previous Versions
+## Migration Guide from 1.x to 2.0
 
-For changes prior to the transformers migration, please refer to the git history.
+### Frontend Changes
+```typescript
+// OLD
+GenerationModel.DIFFRHYTHM
+Screen.DIFFRHYTHM_GENERATOR
+
+// NEW
+GenerationModel.MUSICGEN
+Screen.MUSICGEN_GENERATOR
+```
+
+### API Changes
+```python
+# OLD API request
+{
+  "prompt": "lo-fi hip hop",
+  "duration": 30
+}
+
+# NEW API request
+{
+  "prompt": "lo-fi hip hop",
+  "duration": 30,
+  "guidance_scale": 3.0,
+  "temperature": 1.0,
+  "top_k": 250,
+  "top_p": 0.9
+}
+```
+
+### Backend Changes
+```python
+# OLD
+from .services.diffrhythm import DiffRhythmService
+service = DiffRhythmService()
+
+# NEW
+from .services.musicgen_service import MusicGenService
+service = MusicGenService()
+```
+
+### Model Information
+- **MusicGen**: Real Meta model, 300MB, instrumental music only
+- **Bark**: Real Suno AI model, 1.2GB, speech and vocals
+- All fake models have been removed

@@ -2,11 +2,8 @@
 import React, { useState } from 'react';
 import { Screen, GenerationModel, GeneratedTrack } from './types';
 import ModelSelectionScreen from './screens/ModelSelectionScreen';
-import DiffRhythmGeneratorScreen from './screens/DiffRhythmGeneratorScreen';
-import YueGeneratorScreen from './screens/YueGeneratorScreen';
+import MusicGenGeneratorScreen from './screens/MusicGenGeneratorScreen';
 import BarkGeneratorScreen from './screens/BarkGeneratorScreen';
-import LyriaGeneratorScreen from './screens/LyriaGeneratorScreen';
-import MagnetGeneratorScreen from './screens/MagnetGeneratorScreen';
 import MetadataEditorScreen from './screens/MetadataEditorScreen';
 import ExportScreen from './screens/ExportScreen';
 import FreestyleScreen from './screens/FreestyleScreen';
@@ -20,20 +17,11 @@ const App: React.FC = () => {
   const handleSelectModel = (model: GenerationModel) => {
     setSelectedModel(model);
     switch (model) {
-      case GenerationModel.DIFFRHYTHM:
-        setCurrentScreen(Screen.DIFFRHYTHM_GENERATOR);
-        break;
-      case GenerationModel.YUE:
-        setCurrentScreen(Screen.YUE_GENERATOR);
+      case GenerationModel.MUSICGEN:
+        setCurrentScreen(Screen.MUSICGEN_GENERATOR);
         break;
       case GenerationModel.BARK:
         setCurrentScreen(Screen.BARK_GENERATOR);
-        break;
-      case GenerationModel.LYRIA:
-        setCurrentScreen(Screen.LYRIA_GENERATOR);
-        break;
-      case GenerationModel.MAGNET:
-        setCurrentScreen(Screen.MAGNET_GENERATOR);
         break;
     }
   };
@@ -59,31 +47,25 @@ const App: React.FC = () => {
   };
 
   const renderScreen = () => {
-    switch (currentScreen) {
-      case Screen.MODEL_SELECTION:
-        return <ModelSelectionScreen onSelectModel={handleSelectModel} onNavigate={handleNavigate} />;
-      case Screen.FREESTYLE:
-          return <FreestyleScreen onBack={handleBackToSelection} />;
-      case Screen.DIFFRHYTHM_GENERATOR:
-        return <DiffRhythmGeneratorScreen onBack={handleBackToSelection} onGenerationComplete={handleGenerationComplete} />;
-      case Screen.YUE_GENERATOR:
-        return <YueGeneratorScreen onBack={handleBackToSelection} onGenerationComplete={handleGenerationComplete} />;
-      case Screen.BARK_GENERATOR:
-        return <BarkGeneratorScreen onBack={handleBackToSelection} onGenerationComplete={handleGenerationComplete} />;
-      case Screen.LYRIA_GENERATOR:
-          return <LyriaGeneratorScreen onBack={handleBackToSelection} onGenerationComplete={handleGenerationComplete} />;
-      case Screen.MAGNET_GENERATOR:
-        return <MagnetGeneratorScreen onBack={handleBackToSelection} onGenerationComplete={handleGenerationComplete} />;
-      case Screen.METADATA_EDITOR:
-        if (!generatedTrack) return <ModelSelectionScreen onSelectModel={handleSelectModel} onNavigate={handleNavigate} />; // Fallback
-        return <MetadataEditorScreen track={generatedTrack} onBack={() => handleSelectModel(generatedTrack.model)} onComplete={handleMetadataComplete} />;
-      case Screen.EXPORT:
-        if (!generatedTrack) return <ModelSelectionScreen onSelectModel={handleSelectModel} onNavigate={handleNavigate} />; // Fallback
-        return <ExportScreen track={generatedTrack} onDone={handleBackToSelection} />;
-      default:
-        return <ModelSelectionScreen onSelectModel={handleSelectModel} onNavigate={handleNavigate} />;
-    }
-  };
+      switch (currentScreen) {
+        case Screen.MODEL_SELECTION:
+          return <ModelSelectionScreen onSelectModel={handleSelectModel} onNavigate={handleNavigate} />;
+        case Screen.FREESTYLE:
+            return <FreestyleScreen onBack={handleBackToSelection} />;
+        case Screen.MUSICGEN_GENERATOR:
+          return <MusicGenGeneratorScreen onBack={handleBackToSelection} onGenerationComplete={handleGenerationComplete} />;
+        case Screen.BARK_GENERATOR:
+          return <BarkGeneratorScreen onBack={handleBackToSelection} onGenerationComplete={handleGenerationComplete} />;
+        case Screen.METADATA_EDITOR:
+          if (!generatedTrack) return <ModelSelectionScreen onSelectModel={handleSelectModel} onNavigate={handleNavigate} />; // Fallback
+          return <MetadataEditorScreen track={generatedTrack} onBack={() => handleSelectModel(generatedTrack.model)} onComplete={handleMetadataComplete} />;
+        case Screen.EXPORT:
+          if (!generatedTrack) return <ModelSelectionScreen onSelectModel={handleSelectModel} onNavigate={handleNavigate} />; // Fallback
+          return <ExportScreen track={generatedTrack} onDone={handleBackToSelection} />;
+        default:
+          return <ModelSelectionScreen onSelectModel={handleSelectModel} onNavigate={handleNavigate} />;
+      }
+    };
 
   return (
     <div className="bg-gray-900 text-white min-h-screen font-sans">

@@ -1,11 +1,12 @@
-# MusicGen Local - AI Music Creation Suite
+# MeloGen AI v2.0 - Real AI Music Generation
 
-> 🎵 **Create music with transformers-based MusicGen**  
-> Local application using only transformers library - no audiocraft, ffmpeg, or av required
+> 🎵 **Create music with real MusicGen and Bark models**  
+> Complete rewrite with fake models removed, full parameter support, and production-ready features
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Node.js 16+](https://img.shields.io/badge/node.js-16+-green.svg)](https://nodejs.org/)
+[![Version 2.0](https://img.shields.io/badge/version-2.0.0-brightgreen.svg)](https://github.com/your-repo/melogen-ai)
 
 ## 🚀 Quick Start
 
@@ -40,14 +41,18 @@ npm run dev
 
 ## 📝 API Usage
 
-### Generate Music
+### Generate Music with MusicGen
 
 ```bash
 curl -X POST "http://localhost:8000/api/generate" \
   -H "Content-Type: application/json" \
   -d '{
-    "prompt": "A relaxing lo-fi beat for studying",
-    "duration": 30
+    "prompt": "lo-fi hip hop with piano and rain sounds",
+    "duration": 30,
+    "guidance_scale": 3.0,
+    "temperature": 1.0,
+    "top_k": 250,
+    "top_p": 0.9
   }'
 ```
 
@@ -55,11 +60,25 @@ curl -X POST "http://localhost:8000/api/generate" \
 ```json
 {
   "track_id": "123e4567-e89b-12d3-a456-426614174000",
-  "audio_url": "/output/123e4567-e89b-12d3-a456-426614174000.mp3",
+  "audio_url": "/output/123e4567-e89b-12d3-a456-426614174000.wav",
   "duration": 30,
   "device": "cpu",
   "created_at": "2025-11-09T12:00:00Z"
 }
+```
+
+### Generate Speech with Bark
+
+```bash
+curl -X POST "http://localhost:8000/api/bark" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Привет, это тест русской речи!",
+    "voice_preset": "v2/ru_speaker_0",
+    "language": "ru",
+    "text_temp": 0.7,
+    "waveform_temp": 0.7
+  }'
 ```
 
 ### Get Track Info
@@ -70,49 +89,85 @@ curl "http://localhost:8000/api/track/123e4567-e89b-12d3-a456-426614174000"
 
 ## 🎯 Available Models
 
-| Model | Size | Quality | Speed | Download Size |
-|-------|------|---------|-------|---------------|
-| **small** | 300MB | Good | Fast | ~300MB |
-| **medium** | 1.5GB | Better | Medium | ~1.5GB |
-| **large** | 3GB | Best | Slow | ~3GB |
+### MusicGen (Meta) - Instrumental Music
+| Feature | Description |
+|---------|-------------|
+| **Model** | facebook/musicgen-small |
+| **Size** | 300MB |
+| **Quality** | Excellent instrumental music |
+| **Speed** | ~20 seconds for 30s audio on CPU |
+| **Parameters** | guidance_scale, temperature, top_k, top_p |
+| **Languages** | English prompts recommended |
+| **Output** | Instrumental only (no vocals) |
 
-**Default:** small model (change via `MODEL_SIZE` environment variable)
+### Bark (Suno AI) - Speech & Vocals  
+| Feature | Description |
+|---------|-------------|
+| **Model** | suno/bark |
+| **Size** | 1.2GB |
+| **Quality** | Natural speech and singing |
+| **Speed** | ~30 seconds per segment |
+| **Languages** | 100+ voices, Russian support |
+| **Special** | Laughter, whispering, emotions |
+| **Output** | Speech, singing, sound effects |
 
-## ✨ Features
+### Model Comparison
+- **MusicGen**: Best for background music, beats, ambient sounds
+- **Bark**: Best for voice-overs, narration, vocal effects
 
-- **🔥 Transformers Only** - Uses only transformers library, no audiocraft/ffmpeg/av
-- **🌍 Cross-Platform** - Works on Windows, macOS, and Linux
-- **⚡ Fast Generation** - Generate music in seconds
-- **🎵 Multiple Formats** - Export as WAV and MP3
-- **💾 Local Processing** - No internet required after setup
+## ✨ Features v2.0
+
+- **🎵 Real Models** - MusicGen (Meta) + Bark (Suno AI) - no more fakes
+- **🔧 Full Parameters** - guidance_scale, temperature, top_k, top_p for MusicGen
+- **🌍 Russian Support** - Bark supports Russian voices and text
+- **⚡ Optimized Performance** - Real generation times, accurate estimates
+- **🎛️ Professional UI** - Parameter sliders, real-time validation
+- **💾 Local Processing** - No internet required after model download
 - **🔧 Simple Setup** - Minimal dependencies, easy installation
+- **📱 Responsive Design** - Works on desktop and mobile
 
 ## 🏗️ Architecture
 
 ```
-React Frontend (3000) → FastAPI Backend (8000) → MusicGen (Transformers)
+React Frontend (3000) → FastAPI Backend (8000) → MusicGen/Bark (Transformers)
                                         ↓
                                    SQLite Database
 ```
 
+### v2.0 Changes
+- ✅ Replaced fake models with real MusicGen and Bark
+- ✅ Added full parameter support for MusicGen
+- ✅ Implemented Russian voice presets for Bark
+- ✅ Updated UI with professional parameter controls
+- ✅ Removed all legacy fake model code
+
 ## 📁 Project Structure
 
 ```
-musicgen/
+melogen-ai/
 ├── python/                    # Python FastAPI backend
 │   ├── app/
 │   │   ├── main.py           # FastAPI app entry
-│   │   ├── api/              # API endpoints
-│   │   ├── services/         # MusicGen service
+│   │   ├── api/              # API endpoints (generation, health)
+│   │   ├── services/         # MusicGen/Bark services
 │   │   └── database/         # Database models
 │   ├── requirements.txt      # Python dependencies
 │   └── venv/                # Virtual environment
-├── components/               # React components
-├── screens/                 # React screens
+├── components/               # React components (shared)
+├── screens/                 # React screens (MusicGen, Bark)
 ├── services/               # Frontend API layer
+├── types.ts               # TypeScript interfaces
 ├── package.json            # Node.js dependencies
-└── README.md               # This file
+├── CHANGELOG.md           # Version history
+└── README.md              # This file
 ```
+
+### v2.0 Structure Changes
+- `MusicGenGeneratorScreen.tsx` - Replaced DiffRhythm
+- `BarkGeneratorScreen.tsx` - Enhanced with Russian voices
+- Removed: `YueGeneratorScreen.tsx`, `LyriaGeneratorScreen.tsx`, `MagnetGeneratorScreen.tsx`
+- New: `MusicGenParams`, `BarkParams` interfaces
+- Updated: `GenerationModel`, `Screen` enums
 
 ## 🛠️ Configuration
 
@@ -120,20 +175,23 @@ musicgen/
 
 ```bash
 # Model configuration
-MODEL_SIZE=small          # small, medium, large
-DEVICE=cpu               # cpu or cuda
+DEVICE=cpu               # cpu or cuda (auto-detected)
 
 # Server configuration  
 PORT=8000                # FastAPI port
-STORAGE_DIR=./output     # Audio file storage
+OUTPUT_DIR=./output       # Audio file storage
+CORS_ALLOW_ORIGINS=http://localhost:3000,http://localhost:5173
 ```
 
-### Model Selection
+### Model Information
 
-Set `MODEL_SIZE` environment variable:
-- `small` - Fastest, 300MB download
-- `medium` - Balanced, 1.5GB download  
-- `large` - Highest quality, 3GB download
+**MusicGen**: Automatically uses `facebook/musicgen-small` (300MB)
+- No configuration needed - model is fixed for v2.0
+- Parameters are controlled via UI sliders
+
+**Bark**: Uses `suno/bark` (1.2GB) when available
+- Russian voice presets built-in (v2/ru_speaker_0-7)
+- Full parameter support via UI controls
 
 ## 🧪 Testing
 

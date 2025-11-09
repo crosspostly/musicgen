@@ -40,80 +40,46 @@ const ModelSelectionScreen: React.FC<ModelSelectionScreenProps> = ({ onSelectMod
     <div className="animate-fade-in space-y-12">
       <div className="text-center">
         <h2 className="text-4xl font-extrabold text-white">Выберите модель генерации</h2>
-        <p className="mt-2 text-lg text-gray-400">Каждая модель предлагает уникальные возможности и результаты.</p>
+        <p className="mt-2 text-lg text-gray-400">Доступны реальные модели с полной поддержкой параметров.</p>
       </div>
 
       <Card className="!p-0 border-indigo-500/50">
         <div className="p-4 bg-indigo-900/30 rounded-t-lg">
-          <h3 className="text-2xl font-bold text-white flex items-center gap-3"><MicrophoneIcon /> Полные песни с вокалом (инструменты + пение)</h3>
+          <h3 className="text-2xl font-bold text-white flex items-center gap-3">🎵 Инструментальная музыка</h3>
         </div>
-        <div className="p-6 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="p-6 grid md:grid-cols-1 lg:grid-cols-2 gap-6">
           <ModelCard
             isRecommended
-            title="DiffRhythm ⭐"
-            description="ASLP-Lab"
+            title="MusicGen"
+            description="Meta"
             features={[
-              { label: '📊 Стоимость', value: 'БЕСПЛАТНО' },
-              { label: '⚡ Скорость', value: 'ОЧЕНЬ БЫСТРО (песня за ~10 сек!)' },
-              { label: '🎵 Качество', value: 'Отличное, естественный вокал' },
-              { label: '⏱️ Длина', value: 'До 4:45 минут' },
+              { label: '💰 Стоимость', value: 'БЕСПЛАТНО' },
+              { label: '⚡ Скорость', value: '~10 мин на CPU для 30с' },
+              { label: '📦 Размер модели', value: '300 MB' },
+              { label: '⏱️ Длительность', value: '5-60 секунд' },
+              { label: '🔧 Параметры', value: 'guidance_scale, temperature, top_k' },
             ]}
-            warning="✓ ИДЕАЛЬНО для перепродажи на стриминге"
-            onSelect={() => onSelectModel(GenerationModel.DIFFRHYTHM)}
-          />
-          <ModelCard
-            title="YuE"
-            description="Multimodal Art Projection"
-            features={[
-              { label: '📊 Стоимость', value: 'БЕСПЛАТНО' },
-              { label: '⚡ Скорость', value: 'Быстро (~30-40 сек за песню)' },
-              { label: '🎵 Качество', value: 'Отличное, синхронный вокал' },
-              { label: '🔧 Управление', value: 'Контроль над инструментами' },
-            ]}
-            warning="✓ Лучше для Rock/Metal и сложных аранжировок"
-            onSelect={() => onSelectModel(GenerationModel.YUE)}
-          />
-          <ModelCard
-            title="Bark"
-            description="Suno AI"
-            features={[
-              { label: '📊 Стоимость', value: 'БЕСПЛАТНО' },
-              { label: '⚡ Скорость', value: 'Среднее (~20 сек на сегмент)' },
-              { label: '🎤 Тип вокала', value: '100+ голосовых пресетов' },
-              { label: '✨ Особенность', value: 'Спецэффекты (смех, шепот)' },
-            ]}
-            warning="✓ Для разговорных интро и спецэффектов"
-            onSelect={() => onSelectModel(GenerationModel.BARK)}
+            warning="✅ Генерирует только инструментальную музыку"
+            onSelect={() => onSelectModel(GenerationModel.MUSICGEN)}
           />
         </div>
       </Card>
 
       <Card>
-        <h3 className="text-2xl font-bold text-white mb-6">🎵 Инструментальная музыка (без вокала)</h3>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">🎤 Вокал и речь</h3>
+        <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-6">
           <ModelCard
-            title="Lyria RealTime"
-            description="Google DeepMind"
+            title="Bark"
+            description="Suno AI"
             features={[
-              { label: '💰 Стоимость', value: '$0.06 за 30 сек' },
-              { label: '⚡ Скорость', value: 'Очень быстро' },
-              { label: '🎵 Качество', value: 'Профессиональное (48kHz)' },
-              { label: '🔧 Управление', value: 'Real-time контроль' },
+              { label: '💰 Стоимость', value: 'БЕСПЛАТНО' },
+              { label: '⚡ Скорость', value: '~30 сек на сегмент' },
+              { label: '🌍 Голоса', value: '100+ голосов, поддержка русского' },
+              { label: '⏱️ Длина', value: 'макс 150 символов (~15 сек)' },
+              { label: '🎭 Особенности', value: 'смех, пение, шепот, эмоции' },
             ]}
-            warning="Требует: Google Cloud API ключ"
-            onSelect={() => onSelectModel(GenerationModel.LYRIA)}
-          />
-          <ModelCard
-            title="MAGNeT"
-            description="Facebook Open-Source"
-            features={[
-              { label: '💰 Стоимость', value: 'Бесплатно' },
-              { label: '⚡ Скорость', value: 'Медленнее' },
-              { label: '🎵 Качество', value: 'Хорошее (16kHz)' },
-              { label: '🔧 Управление', value: 'Фиксированные параметры' },
-            ]}
-            warning="✅ Локально, полный контроль"
-            onSelect={() => onSelectModel(GenerationModel.MAGNET)}
+            warning="⚠️ Требуется установка backend"
+            onSelect={() => onSelectModel(GenerationModel.BARK)}
           />
           <div onClick={() => onNavigate(Screen.FREESTYLE)} className="cursor-pointer bg-gray-800 border border-dashed border-gray-600 rounded-lg p-6 flex flex-col h-full hover:border-indigo-400 hover:bg-gray-800/50 transition-all duration-300 transform hover:-translate-y-1 items-center justify-center text-center">
              <h3 className="text-2xl font-bold text-white">Свободная импровизация</h3>
