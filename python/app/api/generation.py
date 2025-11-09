@@ -8,16 +8,29 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from ..dependencies import get_diffrhythm_service
+from ..dependencies import get_musicgen_service
 from ..database import TrackRepository, get_session
 
 router = APIRouter(prefix="/api", tags=["generation"])
 
 
-class GenerationRequest(BaseModel):
-    """Generation request model"""
-    prompt: str = Field(..., description="Text prompt for generation", min_length=1)
-    duration: int = Field(default=30, ge=5, le=300, description="Duration in seconds (5-300)")
+class MusicGenRequest(BaseModel):
+    """MusicGen generation request model"""
+    prompt: str = Field(..., description="Text prompt for generation (in English)", min_length=1)
+    duration: int = Field(default=30, ge=5, le=60, description="Duration in seconds (5-60)")
+    guidance_scale: float = Field(default=3.0, ge=1.0, le=15.0, description="Guidance scale (1.0-15.0)")
+    temperature: float = Field(default=1.0, ge=0.1, le=2.0, description="Temperature (0.1-2.0)")
+    top_k: int = Field(default=250, ge=50, le=500, description="Top-K sampling (50-500)")
+    top_p: float = Field(default=0.9, ge=0.0, le=1.0, description="Top-P sampling (0.0-1.0)")
+
+
+class BarkRequest(BaseModel):
+    """Bark generation request model"""
+    text: str = Field(..., description="Text to generate speech from", max_length=200)
+    voice_preset: str = Field(default="v2/ru_speaker_0", description="Voice preset")
+    language: str = Field(default="ru", description="Language code")
+    text_temp: float = Field(default=0.7, ge=0.1, le=2.0, description="Text temperature")
+    waveform_temp: float = Field(default=0.7, ge=0.1, le=2.0, description="Waveform temperature")
 
 
 class GenerationResponse(BaseModel):
@@ -42,30 +55,38 @@ class TrackMetadata(BaseModel):
 
 @router.post("/generate", response_model=GenerationResponse, status_code=201)
 async def generate_track(
-    request: GenerationRequest,
+    request: MusicGenRequest,
 ):
     """
-    Generate a music track from a prompt.
+    Generate a music track using MusicGen from a prompt.
     
     Returns immediately with track metadata and audio URL.
     
     Args:
-        request: Generation request with prompt and optional duration
+        request: MusicGen generation request with prompt and parameters
         
     Returns:
         GenerationResponse with track_id, audio_url, and metadata (201 Created)
     """
     try:
-        service = get_diffrhythm_service()
+        service = get_musicgen_service()
         
         result = await service.generate(
             prompt=request.prompt,
-            duration=request.duration
+            duration=request.duration,
+            guidance_scale=request.guidance_scale,
+            temperature=request.temperature,
+            top_k=request.top_k,
+            top_p=request.top_p
         )
+        
+        # Create audio URL relative to output directory
+        audio_filename = f"{result['track_id']}.wav"
+        audio_url = f"/output/{audio_filename}"
         
         return GenerationResponse(
             track_id=result["track_id"],
-            audio_url=result["audio_url"],
+            audio_url=audio_url,
             duration=result["duration"],
             device=result["device"],
             created_at=result["created_at"]
@@ -74,6 +95,34 @@ async def generate_track(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Generation failed: {str(e)}"
+        )
+
+
+@router.post("/bark", response_model=GenerationResponse, status_code=201)
+async def generate_bark(
+    request: BarkRequest,
+):
+    """
+    Generate speech using Bark from text.
+    
+    Returns immediately with track metadata and audio URL.
+    
+    Args:
+        request: Bark generation request with text and voice parameters
+        
+    Returns:
+        GenerationResponse with track_id, audio_url, and metadata (201 Created)
+    """
+    try:
+        # TODO: Implement Bark service when available
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Bark generation not yet implemented"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Bark generation failed: {str(e)}"
         )
 
 

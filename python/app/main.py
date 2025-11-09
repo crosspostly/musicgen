@@ -1,5 +1,5 @@
 """
-FastAPI application for DiffRhythm music generation with direct prompt → track flow
+FastAPI application for MusicGen music generation with direct prompt → track flow
 """
 
 import os
@@ -12,8 +12,8 @@ from fastapi.staticfiles import StaticFiles
 from .config import get_settings
 from .database import init_database
 from .api import generation
-from .dependencies import set_diffrhythm_service
-from .services.diffrhythm import DiffRhythmService
+from .dependencies import set_musicgen_service
+from .services.musicgen_service import MusicGenService
 
 # Configure logging
 logging.basicConfig(
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
-    logger.info("Starting up DiffRhythm service...")
+    logger.info("Starting up MusicGen service...")
     
     settings = get_settings()
     
@@ -35,27 +35,27 @@ async def lifespan(app: FastAPI):
     init_database()
     logger.info("Database initialized")
     
-    # Initialize DiffRhythm service
+    # Initialize MusicGen service
     storage_dir = os.getenv("OUTPUT_DIR", "./output")
     os.makedirs(storage_dir, exist_ok=True)
     
-    service = DiffRhythmService(storage_dir=storage_dir, device="cpu")
-    set_diffrhythm_service(service)
+    service = MusicGenService()
+    set_musicgen_service(service)
     
     # Start model preload in background to keep app responsive
     import asyncio
     preload_task = asyncio.create_task(
-        service.initialize(preload=True),
+        service.initialize(),
         name="model-preload"
     )
     
     # Don't await here - let the app start serving while model loads
-    logger.info(f"DiffRhythm service initialized (storage: {storage_dir}), model preload started")
+    logger.info(f"MusicGen service initialized (storage: {storage_dir}), model preload started")
     
     yield
     
     # Shutdown
-    logger.info("Shutting down DiffRhythm service...")
+    logger.info("Shutting down MusicGen service...")
     # Cancel preload task if still running
     if not preload_task.done():
         preload_task.cancel()
@@ -69,9 +69,9 @@ def create_app() -> FastAPI:
     """Factory function to create and configure the FastAPI application"""
     # Create FastAPI app
     app = FastAPI(
-        title="DiffRhythm Generation API",
+        title="MusicGen Generation API",
         description="Direct prompt → track music generation with audio export",
-        version="1.0.0",
+        version="2.0.0",
         lifespan=lifespan
     )
     
@@ -101,8 +101,8 @@ def create_app() -> FastAPI:
     async def root():
         """Root endpoint"""
         return {
-            "service": "DiffRhythm Generation API",
-            "version": "1.0.0",
+            "service": "MusicGen Generation API",
+            "version": "2.0.0",
             "status": "running"
         }
     
@@ -113,7 +113,7 @@ def create_app() -> FastAPI:
         try:
             return {
                 "status": "healthy",
-                "service": "DiffRhythm Generation API",
+                "service": "MusicGen Generation API",
             }
         except Exception as e:
             logger.error(f"Health check failed: {e}")
