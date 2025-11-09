@@ -1,8 +1,8 @@
 """
-DiffRhythm Generation Service
+MusicGen Generation Service
 
-Provides music generation capabilities with database persistence.
-Wraps the DiffRhythm engine for use in FastAPI applications.
+Provides music generation capabilities using transformers-based MusicGen.
+Cross-platform support with simplified dependencies.
 """
 
 import os
@@ -13,9 +13,11 @@ from pathlib import Path
 from typing import Dict, Optional, Any
 from datetime import datetime
 
+import torch
 import numpy as np
 import soundfile as sf
 from pydub import AudioSegment
+from transformers import MusicgenForConditionalGeneration, AutoProcessor
 
 from ..database import (
     JobRepository,
@@ -26,29 +28,58 @@ from ..database import (
 logger = logging.getLogger(__name__)
 
 
-class DiffRhythmGenerator:
-    """Mock DiffRhythm generator for demonstration"""
+class MusicGenGenerator:
+    """MusicGen generator using transformers"""
 
-    def __init__(self, device: str = "cpu"):
+    def __init__(self, device: str = "cpu", model_size: str = "small"):
         self.device = device
-        self.sample_rate = 44100
+        self.model_size = model_size
+        self.sample_rate = 32000
         self._model_loaded = False
+        self.model = None
+        self.processor = None
+        
+        # Model configurations
+        self.model_configs = {
+            "small": "facebook/musicgen-small",
+            "medium": "facebook/musicgen-medium", 
+            "large": "facebook/musicgen-large"
+        }
 
     async def load_model(self):
-        """Load DiffRhythm model asynchronously"""
+        """Load MusicGen model asynchronously using transformers"""
         if self._model_loaded:
             return
 
-        logger.info(f"Loading DiffRhythm model on {self.device}...")
-        await asyncio.sleep(1)
-        self._model_loaded = True
-        logger.info("DiffRhythm model loaded successfully")
+        model_name = self.model_configs.get(self.model_size, self.model_configs["small"])
+        logger.info(f"Loading MusicGen model '{model_name}' on {self.device}...")
+        
+        try:
+            # Load processor and model
+            self.processor = AutoProcessor.from_pretrained(model_name)
+            self.model = MusicgenForConditionalGeneration.from_pretrained(
+                model_name,
+                torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
+            )
+            
+            # Move to device
+            self.model = self.model.to(self.device)
+            
+            # Set to eval mode
+            self.model.eval()
+            
+            self._model_loaded = True
+            logger.info(f"MusicGen {self.model_size} model loaded successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to load MusicGen model: {str(e)}", exc_info=True)
+            raise
 
     async def generate_audio(
         self, prompt: str, duration: int
     ) -> np.ndarray:
         """
-        Generate audio from prompt using DiffRhythm model
+        Generate audio from prompt using MusicGen model
 
         Args:
             prompt: Text prompt for generation
@@ -58,45 +89,75 @@ class DiffRhythmGenerator:
             Generated audio as numpy array
         """
         await self.load_model()
+        
+        if not self._model_loaded or self.model is None or self.processor is None:
+            raise RuntimeError("Model not loaded")
 
-        num_samples = int(duration * self.sample_rate)
-        t = np.linspace(0, duration, num_samples)
-
-        frequency = 440 + np.random.random() * 100
-        audio = 0.3 * np.sin(2 * np.pi * frequency * t)
-
-        for i in range(3):
-            freq = 220 * (i + 1)
-            audio += 0.1 * np.sin(2 * np.pi * freq * t) * np.random.random()
-
-        audio = audio / np.max(np.abs(audio)) * 0.8
-
-        await asyncio.sleep(2)
-
-        return audio
+        logger.info(f"Generating audio for prompt: '{prompt}' ({duration}s)")
+        
+        try:
+            # Prepare inputs
+            inputs = self.processor(
+                text=[prompt],
+                padding=True,
+                return_tensors="pt",
+            )
+            
+            # Move to device
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            
+            # Calculate max generation tokens based on duration
+            # MusicGen generates at ~50 Hz, so duration * 50 gives approximate token count
+            max_new_tokens = int(duration * 50)
+            
+            # Generate audio
+            with torch.no_grad():
+                audio_values = self.model.generate(
+                    **inputs,
+                    max_new_tokens=max_new_tokens,
+                    do_sample=True,
+                    guidance_scale=3.0,
+                    temperature=1.0,
+                )
+            
+            # Convert to numpy array
+            audio_array = audio_values.cpu().numpy()[0]
+            
+            # Ensure correct sample rate
+            if audio_array.shape[0] != 1:
+                audio_array = audio_array[0]  # Take first channel if multi-channel
+            
+            logger.info(f"Generated {len(audio_array)} samples of audio")
+            return audio_array
+            
+        except Exception as e:
+            logger.error(f"Audio generation failed: {str(e)}", exc_info=True)
+            raise
 
 
 class DiffRhythmService:
     """Main service for music generation with database persistence"""
 
-    def __init__(self, storage_dir: str = "./output", device: str = "cpu"):
+    def __init__(self, storage_dir: str = "./output", device: str = "cpu", model_size: str = "small"):
         """
-        Initialize DiffRhythm service
+        Initialize MusicGen service
 
         Args:
             storage_dir: Directory for storing generated audio files
             device: Device to use for model (cpu or cuda)
+            model_size: Model size (small, medium, large)
         """
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.device = device
-        self.generator = DiffRhythmGenerator(device=device)
+        self.model_size = model_size
+        self.generator = MusicGenGenerator(device=device, model_size=model_size)
         self._initialized = False
         self._initialization_lock = asyncio.Lock()
 
     async def initialize(self, preload: bool = False) -> None:
         """
-        Initialize the DiffRhythm service
+        Initialize the MusicGen service
         
         Args:
             preload: Whether to preload the model during initialization
@@ -108,13 +169,13 @@ class DiffRhythmService:
             if self._initialized:
                 return
             
-            logger.info(f"Initializing DiffRhythm service (device: {self.device}, preload: {preload})")
+            logger.info(f"Initializing MusicGen service (device: {self.device}, model: {self.model_size}, preload: {preload})")
             
             if preload:
                 await self.warm_start()
             
             self._initialized = True
-            logger.info("DiffRhythm service initialization completed")
+            logger.info("MusicGen service initialization completed")
 
     async def warm_start(self) -> None:
         """
@@ -122,16 +183,16 @@ class DiffRhythmService:
         """
         start_time = asyncio.get_event_loop().time()
         
-        logger.info(f"Starting model preload on {self.device}...")
+        logger.info(f"Starting MusicGen {self.model_size} model preload on {self.device}...")
         
         try:
             await self.generator.load_model()
             
             elapsed_time = asyncio.get_event_loop().time() - start_time
-            logger.info(f"Model preload completed successfully in {elapsed_time:.2f} seconds")
+            logger.info(f"MusicGen model preload completed successfully in {elapsed_time:.2f} seconds")
             
         except Exception as e:
-            logger.error(f"Model preload failed: {str(e)}", exc_info=True)
+            logger.error(f"MusicGen model preload failed: {str(e)}", exc_info=True)
             raise
 
     async def generate(
@@ -160,10 +221,10 @@ class DiffRhythmService:
                 job_repo = JobRepository(session)
                 job_repo.create(
                     job_id=job_id,
-                    job_type="diffrhythm",
+                    job_type="musicgen",
                     status="pending",
                     prompt=prompt,
-                    job_metadata={"duration": duration},
+                    job_metadata={"duration": duration, "model_size": self.model_size},
                 )
             finally:
                 session.close()
@@ -175,9 +236,11 @@ class DiffRhythmService:
             wav_path = self.storage_dir / f"{track_id}.wav"
             mp3_path = self.storage_dir / f"{track_id}.mp3"
 
+            # Save as WAV using soundfile
             sf.write(str(wav_path), audio, self.generator.sample_rate)
             logger.info(f"Saved WAV file to {wav_path}")
 
+            # Convert to MP3 using pydub
             wav_audio = AudioSegment.from_wav(str(wav_path))
             wav_audio.export(str(mp3_path), format="mp3", bitrate="320k")
             logger.info(f"Saved MP3 file to {mp3_path}")
@@ -194,6 +257,8 @@ class DiffRhythmService:
                     track_metadata={
                         "prompt": prompt,
                         "language": "en",
+                        "model_size": self.model_size,
+                        "sample_rate": self.generator.sample_rate,
                     },
                     file_path_wav=str(wav_path),
                     file_path_mp3=str(mp3_path),

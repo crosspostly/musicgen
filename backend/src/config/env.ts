@@ -6,7 +6,6 @@ export const envSchema = z.object({
   PY_DIFFRHYTHM_URL: z.string().url().default('http://localhost:8000'),
   STORAGE_DIR: z.string().default('./storage'),
   DATABASE_PATH: z.string().default('./storage/database.sqlite'),
-  FFMPEG_PATH: z.string().default('ffmpeg'),
   MAX_CONCURRENT_JOBS: z.string().transform(Number).default('3'),
   JOB_TIMEOUT: z.string().transform(Number).default('600'),
 });

@@ -44,31 +44,93 @@ class MusicGenModel(BaseMusicModel):
         self.size = size
         self.sample_rate = 32000
         self._model = None
+        self._processor = None
         self._model_loaded = False
         self.name = f"musicgen-{size}"
         self.available = True
+        
+        # Model configurations
+        self.model_configs = {
+            "small": "facebook/musicgen-small",
+            "medium": "facebook/musicgen-medium", 
+            "large": "facebook/musicgen-large"
+        }
+        
     async def load_model(self):
-        if self._model_loaded: return
+        if self._model_loaded: 
+            return
+            
         try:
-            from audiocraft.models import MusicGen
-            model_ver = f"facebook/musicgen-{self.size}"
-            self._model = await asyncio.to_thread(
-                MusicGen.get_pretrained, model_ver, device=self.device
+            from transformers import MusicgenForConditionalGeneration, AutoProcessor
+            import torch
+            
+            model_name = self.model_configs.get(self.size, self.model_configs["small"])
+            
+            # Load processor and model
+            self._processor = AutoProcessor.from_pretrained(model_name)
+            self._model = MusicgenForConditionalGeneration.from_pretrained(
+                model_name,
+                torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
             )
-            self._model.set_generation_params(duration=30)
+            
+            # Move to device
+            self._model = self._model.to(self.device)
+            self._model.eval()
+            
             self._model_loaded = True
+            logger.info(f"MusicGen {self.size} model loaded successfully")
+            
         except ImportError as e:
-            logger.error("audiocraft not installed! Please install with pip install audiocraft")
+            logger.error("transformers not installed! Please install with pip install transformers")
             raise e
+        except Exception as e:
+            logger.error(f"Failed to load MusicGen model: {str(e)}")
+            raise
+            
     async def generate_audio(self, prompt: str, duration: int):
         await self.load_model()
-        self._model.set_generation_params(duration=duration)
-        import torch
-        with torch.no_grad():
-            wav = await asyncio.to_thread(self._model.generate, [prompt], progress=False)
-        audio = wav[0].cpu().numpy()
-        if audio.ndim > 1: audio = audio.mean(axis=0)
-        return audio
+        
+        if not self._model_loaded or self._model is None or self._processor is None:
+            raise RuntimeError("Model not loaded")
+            
+        try:
+            import torch
+            
+            # Prepare inputs
+            inputs = self._processor(
+                text=[prompt],
+                padding=True,
+                return_tensors="pt",
+            )
+            
+            # Move to device
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            
+            # Calculate max generation tokens based on duration
+            max_new_tokens = int(duration * 50)
+            
+            # Generate audio
+            with torch.no_grad():
+                audio_values = self._model.generate(
+                    **inputs,
+                    max_new_tokens=max_new_tokens,
+                    do_sample=True,
+                    guidance_scale=3.0,
+                    temperature=1.0,
+                )
+            
+            # Convert to numpy array
+            audio = audio_values.cpu().numpy()[0]
+            
+            # Ensure correct format
+            if audio.ndim > 1:
+                audio = audio.mean(axis=0)
+                
+            return audio
+            
+        except Exception as e:
+            logger.error(f"Audio generation failed: {str(e)}")
+            raise
 
 class DiffRhythmModel(BaseMusicModel):
     def __init__(self, size: str = "base", device: str = "cpu"):
